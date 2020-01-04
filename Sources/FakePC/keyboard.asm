@@ -13,6 +13,7 @@
                 KEYBUF_END      EQU     0x82
 
 int_16h:
+                sti
                 out     0xe4, ax
                 push    ds
                 push    bx
@@ -44,12 +45,12 @@ int_16h:
                 iret
 
 .wait_key:
+                cli
                 mov     bx, [KEYBUF_HEAD]
                 cmp     bx, [KEYBUF_TAIL]
-                jne     .key_ready
                 sti
+                jne     .key_ready
                 hlt                     ; wait for a keyboard IRQ
-                cli
                 jmp     .wait_key
 
 .key_ready:

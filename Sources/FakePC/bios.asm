@@ -44,9 +44,9 @@ set_vectors:
                 mov     di, ax
                 shl     di, 2
                 lodsw                   ; count of vectors - 0 if nothing more to do
-                test    ax, ax          
+                test    ax, ax
                 jz      set_vector_end
-                mov     cx, ax          
+                mov     cx, ax
 
 set_vector:
                 lodsw                   ; vector IP
@@ -55,13 +55,13 @@ set_vector:
                 loop    set_vector
                 jmp     set_vectors
 
-set_vector_end:                
+set_vector_end:
                 ;; Setup BDA - BIOS Data Area
                 mov     ax, 1
                 out     0xe6, ax
 
                 call    setup_pic
-        ;;                 call    setup_pit
+                call    setup_pit
                 sti
                 ;; Boot the system
                 int     0x19
@@ -111,7 +111,7 @@ int_15h:
 
 %include "Sources/FakePC/keyboard.asm"
 %include "Sources/FakePC/irq.asm"
-                
+
                 ;; Printer
 int_17h:
                 out     0xe5, ax

@@ -1,6 +1,6 @@
 //
 //  disk.swift
-//  
+//
 //
 //  Created by Simon Evans on 01/01/2020.
 //
@@ -163,7 +163,7 @@ func disk(_ ax: UInt16, _ vm: VirtualMachine) {
             status = .invalidCommand
             break
         }
-        
+
         guard let startSector = drive.logicalSector(cx: vcpu.registers.cx, dh: vcpu.registers.dh) else {
             status = .invalidCommand
             break
@@ -195,14 +195,14 @@ func disk(_ ax: UInt16, _ vm: VirtualMachine) {
         status = .ok
 
     case .readDriveParameters:
-        guard let drive = diskDrives[dl] else {            
+        guard let drive = diskDrives[dl] else {
             status = .invalidCommand
             break
         }
 
         showRegisters(vcpu)
         vcpu.registers.bl = 04
-        let cylinders = drive.tracksPerHead 
+        let cylinders = drive.tracksPerHead
         vcpu.registers.ch = UInt8(cylinders & 0xff)
         vcpu.registers.cl = UInt8(drive.sectorsPerTrack & 0x3f) | (UInt8(cylinders >> 6) & 0xc0)
         vcpu.registers.dh = UInt8(drive.heads - 1)

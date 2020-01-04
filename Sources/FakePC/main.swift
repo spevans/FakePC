@@ -55,7 +55,7 @@ func showRegisters(_ vcpu: VirtualMachine.VCPU) {
     showReg("ES", vcpu.registers.es.selector)
     showReg("FS", vcpu.registers.fs.selector)
     showReg("GS", vcpu.registers.gs.selector)
-    print("")
+    print("FLAGS", vcpu.registers.rflags)
     showReg("IP", vcpu.registers.ip)
     showReg("AX", vcpu.registers.ax)
     showReg("BX", vcpu.registers.bx)
@@ -126,7 +126,7 @@ func main() throws {
                 if case VMExit.DataWrite.word(let value) = data {
                     let ip = UInt64(vcpu.registers.cs.base) + vcpu.registers.rip
                     // Is call from BIOS?
-                    if (port >= 0xE0 && port <= 0xE6) && (ip >= 0xFF000 && ip <= 0xFFFFF) {
+                    if (port >= 0xE0 && port <= 0xEF) && (ip >= 0xFF000 && ip <= 0xFFFFF) {
                         try biosCall(vm: vm, subSystem: port, function: value)
                         continue
                     } else {
@@ -136,7 +136,7 @@ func main() throws {
 
             }
             ioOut(port: port, dataWrite: data)
-            
+
             case .ioInOperation(let port, let dataRead):
                 ioIn(port: port, dataRead: dataRead)
 

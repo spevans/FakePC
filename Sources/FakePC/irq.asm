@@ -3,7 +3,7 @@
 ;;;
 ;;; Created by Simon Evans on 02/01/2020.
 ;;;
-                
+
                 ;; PIC IO Ports
                 PIC1_CMD_REG    EQU 0x20
                 PIC1_DATA_REG   EQU 0x21
@@ -32,9 +32,10 @@
 
                 ;; Clock tick interrupt
 irq_0:
-                hlt
                 push    ds
                 push    eax
+                mov     ax, 1
+                out     0xef, ax
                 xor     ax, ax
                 mov     ds, ax
                 mov     eax, [0x46C]
@@ -48,6 +49,9 @@ irq_0:
                 int     0x1c
                 mov     al, EOI
                 out     PIC1_CMD_REG, al
+                mov     ax, 2
+                out     0xef, ax
+
                 pop     eax
                 pop     ds
                 iret
@@ -156,4 +160,4 @@ setup_pit:
                 out     0x40, al
                 mov     cl, 0
                 call    enable_irq
-                ret                        
+                ret

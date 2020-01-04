@@ -20,9 +20,26 @@ func biosCall(vm: VirtualMachine, subSystem: IOPort, function: UInt16) throws {
         case 0xE4: keyboard(function, vm)
         case 0xE5: printer(function, vm)
         case 0xE6: try setupBDA(vm) // setup BIOS Data Area
+        case 0xEF: debug(function, vm)
         default: fatalError("Unhandled BIOS call (0x\(String(subSystem, radix: 16)),0x\(String(function, radix: 16)))")
     }
 }
+
+
+
+private func debug(_ ax: UInt16, _ vm: VirtualMachine) {
+    print("BIOS Debug call")
+    let bda = BDA()
+    showRegisters(vm.vcpus[0])
+    switch ax {
+    case 0x01: print("Entering IRQ0: bda.timerCount:", bda.timerCount)
+    case 0x02: print("Exiting IRQ0: bda.timerCount:", bda.timerCount)
+    case 0x03: print("Entering INT16")
+    case 0x04: print("Exiting INT16")
+    default: fatalError("Unhandled DEBUG call \(String(ax, radix: 16))")
+    }
+}
+
 
 /*
 private var bdaRegion: UnsafeMutableRawBufferPointer!

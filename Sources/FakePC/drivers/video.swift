@@ -1,6 +1,6 @@
 //
 //  video.swift
-//  
+//
 //
 //  Created by Simon Evans on 01/01/2020.
 //
@@ -67,11 +67,10 @@ func video(_ ax: UInt16, _ vm: VirtualMachine) {
             //print("TTY Output:", String(vcpu.registers.al, radix: 16))
         print(char, terminator: "")
         fflush(stdout)
-        
+
         case .getVideoMode:
         fallthrough
         case .writeString:
             fatalError("\(videoFunction): not implemented")
     }
 }
-
