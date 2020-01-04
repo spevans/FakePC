@@ -1,3 +1,9 @@
+;;;
+;;; bios.asm
+;;;
+;;; Created by Simon Evans on 07/12/2020.
+;;;
+
                 %macro OFFSET 1
                     times %1 - ($ - $$)   db 0x90
                 %endmacro
@@ -35,12 +41,12 @@ idt_loop:
                 mov     si, vectors
 set_vectors:
                 lodsw                   ; starting interrupt
-                test    ax, ax
-                jz      set_vector_end
                 mov     di, ax
                 shl     di, 2
-                lodsw
-                mov     cx, ax          ; count of vectors
+                lodsw                   ; count of vectors - 0 if nothing more to do
+                test    ax, ax          
+                jz      set_vector_end
+                mov     cx, ax          
 
 set_vector:
                 lodsw                   ; vector IP
@@ -49,11 +55,14 @@ set_vector:
                 loop    set_vector
                 jmp     set_vectors
 
-set_vector_end:
+set_vector_end:                
                 ;; Setup BDA - BIOS Data Area
                 mov     ax, 1
                 out     0xe6, ax
 
+                call    setup_pic
+        ;;                 call    setup_pit
+                sti
                 ;; Boot the system
                 int     0x19
 
@@ -71,7 +80,7 @@ int_11h:
                 push    ds
                 xor     ax, ax
                 mov     ds ,ax
-                mov     ax: [0x410]
+                mov     ax, [0x410]
                 pop     ds
                 iret
 
@@ -100,16 +109,9 @@ int_15h:
                 out     0xe3, ax
                 retf    2               ; preserve CF
 
-                ;; Keyboard
-int_16h:
-                cmp     ah, 0x12
-
-
-
-                out     0xe4, ax
-                hlt
-                iret
-
+%include "Sources/FakePC/keyboard.asm"
+%include "Sources/FakePC/irq.asm"
+                
                 ;; Printer
 int_17h:
                 out     0xe5, ax
@@ -167,6 +169,9 @@ msg_no_basic:   db      "No BASIC ROM Installed", 0x0A, 0x0D, 0
 
                 ALIGN   2
 vectors:        ;; Starting interrupt, vector count, vectors
+                dw      0x08, 2
+                dw      irq_0,
+                dw      irq_1,
                 dw      0x10, 11
                 dw      int_10h
                 dw      int_11h,
@@ -179,7 +184,7 @@ vectors:        ;; Starting interrupt, vector count, vectors
                 dw      int_18h,
                 dw      int_19h,
                 dw      int_1ah,
-                dw      0
+                dw      0x0, 0
 
                 ;; 8086 Startup at FFFF:0000 => FFFF0
                 ;; BIOS Loaded at 0xFF000

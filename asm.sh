@@ -1,3 +1,3 @@
 #!/bin/sh
 
-nasm  -Werror -f bin -l bios.lst -o bios.bin bios.asm
+nasm  -Werror -f bin -l bios.lst -o bios.bin Sources/FakePC/bios.asm

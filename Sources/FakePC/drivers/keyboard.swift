@@ -16,5 +16,9 @@ import HypervisorKit
 
 
 func keyboard(_ ax: UInt16, _ vm: VirtualMachine) {
-
+    let function = UInt8(ax >> 8)
+//    print("KEYBOARD: function = 0x\(String(function, radix: 16)) not implemented")
+    var bda = BDA()
+    bda.timerCount += 100
+//    print("bda.timerCount:", bda.timerCount)
 }

@@ -82,8 +82,10 @@ private func serial(_ ax: UInt16, _ vm: VirtualMachine) {
 // INT 0x15
 private func systemServices(_ ax: UInt16, _ vm: VirtualMachine) {
     let function = UInt8(ax >> 8)
-
-    fatalError("SYSTEM: function = 0x\(String(function, radix: 16)) not implemented")
+    let vcpu = vm.vcpus[0]
+    showRegisters(vcpu)
+    print("SYSTEM: function = 0x\(String(function, radix: 16)) not implemented")
+    vcpu.registers.rflags.carry = true
     
 }
 

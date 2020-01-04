@@ -6,6 +6,11 @@
 //
 
 import HypervisorKit
+#if canImport(Glibc)
+import Glibc
+#elseif canImport(Darwin)
+import Darwin
+#endif
 
 private enum VideoFunctions: UInt8 {
     case setVideMode = 0
@@ -60,8 +65,9 @@ func video(_ ax: UInt16, _ vm: VirtualMachine) {
         case .ttyOutput:
             let char = UnicodeScalar(vcpu.registers.al)
             //print("TTY Output:", String(vcpu.registers.al, radix: 16))
-            print(char, terminator: "")
-
+        print(char, terminator: "")
+        fflush(stdout)
+        
         case .getVideoMode:
         fallthrough
         case .writeString:

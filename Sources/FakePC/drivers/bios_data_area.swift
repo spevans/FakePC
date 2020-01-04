@@ -123,5 +123,12 @@ func setupBDA(_ vm: VirtualMachine) throws {
 
     bda.equipment = equipment.rawValue
     bda.memorySize = 640
+
+    bda.keyboardBufferHead = 0x1E
+    bda.keyboardBufferTail = 0x1E
+    bda.keyboardBufferStartAddress = 0x1E
+    bda.keyboardBufferEndAddress = 0x3C
+
+    
     diskInit()
 }
