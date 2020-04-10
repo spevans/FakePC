@@ -1,6 +1,6 @@
 //
 //  bios.swift
-//  
+//
 //
 //  Created by Simon Evans on 27/12/2019.
 //
@@ -17,7 +17,7 @@ func biosCall(vm: VirtualMachine, subSystem: IOPort, function: UInt16) throws {
         case 0xE1: disk(function, vm)
         case 0xE2: serial(function, vm)
         case 0xE3: systemServices(function, vm)
-        case 0xE4: keyboard(function, vm)
+        case 0xE4: try keyboard(function, vm)
         case 0xE5: printer(function, vm)
         case 0xE6: try setupBDA(vm) // setup BIOS Data Area
         case 0xEF: debug(function, vm)
@@ -61,7 +61,7 @@ public func setupBDA(_ vm: VirtualMachine) throws {
     equipment[0] = 1        // boot floppy present
     bdaPtr.storeBytes(of: equipment.rawValue, toByteOffset: 0x10, as: UInt16.self)
 
-    // Installed RAM 
+    // Installed RAM
     bdaPtr.unalignedStoreBytes(of: 640, toByteOffset: 0x13, as: UInt16.self)
 
     diskInit()
@@ -79,7 +79,7 @@ private func serial(_ ax: UInt16, _ vm: VirtualMachine) {
     case receiveCharacter = 2
     case getPortStatus = 3
     case extendedInitialise = 4
-    case extendedPortControl = 5        
+    case extendedPortControl = 5
     }
 
     guard let serialFunction = SerialFunctions(rawValue: function) else {
@@ -93,7 +93,7 @@ private func serial(_ ax: UInt16, _ vm: VirtualMachine) {
     let serialPort = Int(dl)
 
     fatalError("SERIAL: \(serialFunction) for port \(serialPort) not implemented")
-    vcpu.registers.rflags.carry = true
+    //vcpu.registers.rflags.carry = true
 }
 
 // INT 0x15
@@ -103,7 +103,7 @@ private func systemServices(_ ax: UInt16, _ vm: VirtualMachine) {
     showRegisters(vcpu)
     print("SYSTEM: function = 0x\(String(function, radix: 16)) not implemented")
     vcpu.registers.rflags.carry = true
-    
+
 }
 
 // INT 0x17
@@ -122,7 +122,7 @@ private func printer(_ ax: UInt16, _ vm: VirtualMachine) {
 
     let vcpu = vm.vcpus[0]
     let dl = vcpu.registers.dl
-    let al = vcpu.registers.al
+//    let al = vcpu.registers.al
 
     let printer = Int(dl)
     guard printer == 0 else {

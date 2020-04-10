@@ -10,6 +10,10 @@ import HypervisorKit
 
 // INT 0x16
 
-func keyboard(_ ax: UInt16, _ vm: VirtualMachine) {
-    let function = UInt8(ax >> 8)
+func keyboard(_ ax: UInt16, _ vm: VirtualMachine) throws {
+    //    let function = UInt8(ax >> 8)
+    let bda = BDA()
+    if bda.timerCount > 0 {
+//        print("keyboard, timerCount:", bda.timerCount)
+    }
 }
