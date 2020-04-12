@@ -1,24 +1,12 @@
-// pic.swift
-// Created 02/01/2020
 //
-// PIC 8259 emulattion and IRQ injection
+//  i8259.swift
+//
+//  Created by Simon Evans on 02/01/2020.
+//
+//  PIC 8259 Programmable Interrupt Controllr emulation and IRQ injection.
+//
 
 import HypervisorKit
-import Dispatch
-
-#if canImport(Glibc)
-  import Glibc
-#else
-  import Darwin
-#endif
-
-
-protocol ISAIOHardware {
-
-    func ioOut(port: IOPort, operation: VMExit.DataWrite) throws
-    func ioIn(port: IOPort, operation: VMExit.DataRead) -> VMExit.DataWrite
-    func process()
-}
 
 
 private extension UInt8 {
@@ -260,6 +248,8 @@ final class PIC: ISAIOHardware {
                 if icw1.isIcw4Needed == false {
                     icw4 = ICW4(value: 0)
                 }
+                // Clear any pending IRQ sent to the CPU.
+                vcpu.clearPendingIRQ()
                 state = .waitingForICW2
             }
 
@@ -267,6 +257,7 @@ final class PIC: ISAIOHardware {
             if a0 {
                 let icw2 = ICW2(value: byte)
                 vectorAddressBase = icw2.irqBase
+                print("vectorAddressBase:", vectorAddressBase)
                 if icw1.isCascade {
                     state = .waitingForICW3
                 } else if icw1.isIcw4Needed {
@@ -342,70 +333,4 @@ final class PIC: ISAIOHardware {
         }
         return 0
     }
-}
-
-
-
-final class PIT: ISAIOHardware {
-
-    private let pic: PIC
-
-    init(pic: PIC) {
-        self.pic = pic
-    }
-
-
-    func ioOut(port: IOPort, operation: VMExit.DataWrite) throws {
-    }
-
-
-    func ioIn(port: IOPort, operation: VMExit.DataRead) -> VMExit.DataWrite {
-        return VMExit.DataWrite(bitWidth: operation.bitWidth, value: 0)!
-    }
-
-    func process() {
-    }
-}
-
-private var pic1: PIC?
-private var pic2: PIC?
-private var pit: PIT?
-private let queue = DispatchQueue(label: "pit_timer")
-private let timer = { DispatchSource.makeTimerSource(queue: queue) }()
-private var timerActivated = false
-
-func registerPICHardware(vcpu: VirtualMachine.VCPU) {
-
-    pic1 = PIC(vcpu: vcpu, master: nil)
-    pic2 = PIC(vcpu: vcpu, master: pic1!)
-
-    registerIOPort(ports: 0x20...0x21, pic1!)
-    registerIOPort(ports: 0xA0...0xA1, pic2!)
-
-    pit = PIT(pic: pic1!)
-    registerIOPort(ports: 0x40...0x43, pit!)
-
-
-    timer.setEventHandler {
-        print("Sending Timer")
-        pic1?.send(irq: 0)
-    }
-    timer.schedule(deadline: .now(), repeating: .milliseconds(55))
-}
-
-
-func registerPITHardware(vcpu: VirtualMachine.VCPU) {
-    pit = PIT(pic: pic1!)
-}
-
-
-func processHardware() {
-    if !timerActivated {
-        print("Activating timer")
-        timer.activate()
-        timerActivated = true
-    }
-    pit!.process()
-    pic2!.process()
-    pic1!.process()
 }

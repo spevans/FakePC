@@ -15,30 +15,6 @@ func hexNum<T: BinaryInteger>(_ value: T, width: Int) -> String {
 }
 
 
-private var ioPortHandlers: [IOPort:ISAIOHardware] = [:]
-
-func registerIOPort(ports: ClosedRange<IOPort>, _ hardware: ISAIOHardware) {
-    for port in ports {
-        ioPortHandlers[port] = hardware // (outFunction, inFunction)
-    }
-}
-
-func ioOut(port: IOPort, dataWrite: VMExit.DataWrite) throws {
-    print("IO-OUT: \(String(port, radix: 16)):", dataWrite)
-    if let hardware = ioPortHandlers[port] {
-        try hardware.ioOut(port: port, operation: dataWrite)
-    }
-}
-
-
-func ioIn(port: IOPort, dataRead: VMExit.DataRead) -> VMExit.DataWrite {
-    print("IO-IN: \(String(port, radix: 16)):", dataRead)
-    if let hardware = ioPortHandlers[port] {
-        return hardware.ioIn(port: port, operation: dataRead)
-    } else {
-        return VMExit.DataWrite(bitWidth: dataRead.bitWidth, value: 0)!
-    }
-}
 
 
 func showRegisters(_ vcpu: VirtualMachine.VCPU) {
@@ -86,6 +62,67 @@ func dumpMemory(_ memory: MemoryRegion, offset: Int, count: Int) {
 }
 
 
+private var count = 0
+func processVMExit(_ vcpu: VirtualMachine.VCPU, _ vmExit: VMExit) throws -> Bool {
+    count += 1
+    guard count < 500_000 else {
+        print("Max VMExits reached")
+        return true
+    }
+
+    switch vmExit {
+        case .ioOutOperation(let port, let data):
+            if case VMExit.DataWrite.word(let value) = data {
+                let ip = UInt64(vcpu.registers.cs.base) + vcpu.registers.rip
+                // Is call from BIOS?
+                if (port >= 0xE0 && port <= 0xEF) && (ip >= 0xFF000 && ip <= 0xFFFFF) {
+                    try biosCall(vm: vcpu.vm, subSystem: port, function: value)
+                    break
+                } else {
+                    print("Port: \(String(port, radix: 16)) IP: \(String(ip, radix: 16))")
+                    print("Not a bios call")
+                }
+
+            }
+            try ISA.ioOut(port: port, dataWrite: data)
+
+        case .ioInOperation(let port, let dataRead):
+            let data = ISA.ioIn(port: port, dataRead: dataRead)
+            print("ioIn(0x\(String(port, radix: 16)), \(dataRead) => \(data))")
+            vcpu.setIn(data: data)
+
+        case .memoryViolation:
+            //print(vmExit)
+            //print("Ignoring violation:", violation)
+            break
+
+        case .exception(let exceptionInfo):
+            showRegisters(vcpu)
+            let offset = Int(vcpu.registers.cs.base) + Int(vcpu.registers.ip)
+            dumpMemory(vcpu.vm.memoryRegions[0], offset: offset, count: 16)
+
+            fatalError("\(vmExit): \(exceptionInfo)")
+
+        case .debug(let debug):
+            showRegisters(vcpu)
+            fatalError("\(vmExit): \(debug)")
+
+        case .hlt:
+            print("HLT... exiting")
+            showRegisters(vcpu)
+            return true
+
+
+        default:
+            print(vmExit)
+            showRegisters(vcpu)
+            fatalError("Unhandled exit: \(vmExit)")
+    }
+    ISA.processHardware()
+    return false
+}
+
+
 func main() throws {
     #if os(Linux)
     let biosURL = URL(fileURLWithPath: "/home/spse/src/osx/FakePC/bios.bin", isDirectory: false)
@@ -95,8 +132,8 @@ func main() throws {
     let biosImage = try Data(contentsOf: biosURL)
 
     let vm = try VirtualMachine()
-    
-    
+
+
     // Currently only KVM will emulate an PIC and PIT, HVF will not. The PIC/PIT code needs to be added into
     // HypervisorKit then it can be enabled there for HVF and the KVM one used on Linux.
     // try vm.addPICandPIT()
@@ -107,66 +144,20 @@ func main() throws {
     let biosRegion = try vm.addMemory(at: 0xFF000, size: 4096)
 
     try biosRegion.loadBinary(from: biosImage, atOffset: 0x0)
-    let vcpu = try vm.createVCPU()
-    vcpu.setupRealMode()
-    registerPICHardware(vcpu: vcpu)
-
-    var count = 0
-
-    while count < 500000 {
-        let vmExit = try vcpu.run()
-        count += 1
-
-        switch vmExit {
-            case .ioOutOperation(let port, let data):
-                if case VMExit.DataWrite.word(let value) = data {
-                    let ip = UInt64(vcpu.registers.cs.base) + vcpu.registers.rip
-                    // Is call from BIOS?
-                    if (port >= 0xE0 && port <= 0xEF) && (ip >= 0xFF000 && ip <= 0xFFFFF) {
-                        try biosCall(vm: vm, subSystem: port, function: value)
-                        continue
-                    } else {
-                        print("Port: \(String(port, radix: 16)) IP: \(String(ip, radix: 16))")
-                        print("Not a bios call")
-                    }
-
-            }
-            try ioOut(port: port, dataWrite: data)
-
-            case .ioInOperation(let port, let dataRead):
-            let data = ioIn(port: port, dataRead: dataRead)
-            print("ioIn(0x\(String(port, radix: 16)), \(dataRead) => \(data))")
-            vcpu.setIn(data: data)
-
-            case .memoryViolation:
-                //print(vmExit)
-                //print("Ignoring violation:", violation)
-                continue
-
-        case .exception(let exceptionInfo):
-                showRegisters(vcpu)
-                let offset = Int(vcpu.registers.cs.base) + Int(vcpu.registers.ip)
-                dumpMemory(vm.memoryRegions[0], offset: offset, count: 16)
-
-                fatalError("\(vmExit): \(exceptionInfo)")
-
-            case .debug(let debug):
-                showRegisters(vcpu)
-                fatalError("\(vmExit): \(debug)")
-
-            case .hlt:
-                print("HLT... exiting")
-                showRegisters(vcpu)
-                return
 
 
-            default:
-                print(vmExit)
-                showRegisters(vcpu)
-                fatalError("Unhandled exit: \(vmExit)")
-        }
-        processHardware()
-    }
+    let group = DispatchGroup()
+    let vcpu = try vm.createVCPU(startup: { $0.setupRealMode() },
+                                 vmExitHandler: processVMExit,
+                                 completionHandler: { group.leave() })
+
+    ISA.registerHardware(vcpu: vcpu)
+
+    group.enter()
+    vcpu.start()
+    print("Waiting for VCPU to finish")
+    group.wait()
+    print("VCPU has finished")
 }
 
 

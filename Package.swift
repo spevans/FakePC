@@ -6,7 +6,7 @@ import PackageDescription
 let package = Package(
     name: "FakePC",
     platforms: [
-        .macOS(.v10_14),
+        .macOS(.v10_12),
     ],
     dependencies: [
         // Dependencies declare other packages that this package depends on.

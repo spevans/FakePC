@@ -34,8 +34,8 @@
 irq_0:
                 push    ds
                 push    eax
-                mov     ax, 1
-                out     0xef, ax
+;                mov     ax, 1
+;                out     0xef, ax       ; Debug call
                 xor     ax, ax
                 mov     ds, ax
                 mov     eax, [0x46C]
@@ -49,8 +49,8 @@ irq_0:
                 int     0x1c
                 mov     al, EOI
                 out     PIC1_CMD_REG, al
-                mov     ax, 2
-                out     0xef, ax
+;                mov     ax, 2
+;                out     0xef, ax       ; Debug call
 
                 pop     eax
                 pop     ds
