@@ -70,10 +70,8 @@ set_vector_end:
 dummy_vector:
                 iret
 
-                ;; Video
-int_10h:
-                out     0xE0, ax
-                iret
+%include "Sources/FakePC/bios/video.asm"
+
 
                 ;; Equipment List
 int_11h:
@@ -109,8 +107,8 @@ int_15h:
                 out     0xe3, ax
                 retf    2               ; preserve CF
 
-%include "Sources/FakePC/keyboard.asm"
-%include "Sources/FakePC/irq.asm"
+%include "Sources/FakePC/bios/keyboard.asm"
+%include "Sources/FakePC/bios/irq.asm"
 
                 ;; Printer
 int_17h:
@@ -150,6 +148,7 @@ loaded_ok:
 
                 ;; Time of day
 int_1ah:
+                out 0xE8, ax
                 iret
 
 print:          ;; DS:SI => ASCIIZ string

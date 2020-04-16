@@ -1,7 +1,6 @@
 import Foundation
 import HypervisorKit
 
-
 private var ram: MemoryRegion?
 private var hma: MemoryRegion?
 
@@ -13,8 +12,6 @@ func hexNum<T: BinaryInteger>(_ value: T, width: Int) -> String {
     }
     return num
 }
-
-
 
 
 func showRegisters(_ vcpu: VirtualMachine.VCPU) {
@@ -123,16 +120,45 @@ func processVMExit(_ vcpu: VirtualMachine.VCPU, _ vmExit: VMExit) throws -> Bool
 }
 
 
-func main() throws {
-    #if os(Linux)
-    let biosURL = URL(fileURLWithPath: "/home/spse/src/osx/FakePC/bios.bin", isDirectory: false)
-    #else
-    let biosURL = URL(fileURLWithPath: "/Users/spse/Files/src/osx/FakePC/bios.bin", isDirectory: false)
-    #endif
-    let biosImage = try Data(contentsOf: biosURL)
+func runVM(vm: VirtualMachine) throws {
+    let group = DispatchGroup()
+    let vcpu = try vm.createVCPU(startup: { $0.setupRealMode() },
+                                 vmExitHandler: processVMExit,
+                                 completionHandler: { group.leave() })
 
+    try ISA.registerHardware(vm: vm)
+
+    group.enter()
+    vcpu.start()
+    print("Waiting for VCPU to finish")
+    group.wait()
+    print("VCPU has finished")
+
+}
+
+private var vmThread: Thread!
+func runVMThread() {
+    let vm: VirtualMachine
+
+    do {
+        vm = try setupVM()
+    }  catch {
+        fatalError("Error: \(error)")
+    }
+
+    vmThread = Thread {
+        do {
+            try runVM(vm: vm)
+        } catch {
+            NSLog("vmThread: \(error)")
+        }
+    }
+    vmThread.start()
+}
+
+
+func setupVM() throws -> VirtualMachine {
     let vm = try VirtualMachine()
-
 
     // Currently only KVM will emulate an PIC and PIT, HVF will not. The PIC/PIT code needs to be added into
     // HypervisorKit then it can be enabled there for HVF and the KVM one used on Linux.
@@ -143,22 +169,22 @@ func main() throws {
     // Top 4K
     let biosRegion = try vm.addMemory(at: 0xFF000, size: 4096)
 
+#if os(Linux)
+    let biosURL = URL(fileURLWithPath: "/home/spse/src/osx/FakePC/bios.bin", isDirectory: false)
+#else
+    let biosURL = URL(fileURLWithPath: "/Users/spse/Files/src/osx/FakePC/bios.bin", isDirectory: false)
+#endif
+    let biosImage = try Data(contentsOf: biosURL)
+
     try biosRegion.loadBinary(from: biosImage, atOffset: 0x0)
-
-
-    let group = DispatchGroup()
-    let vcpu = try vm.createVCPU(startup: { $0.setupRealMode() },
-                                 vmExitHandler: processVMExit,
-                                 completionHandler: { group.leave() })
-
-    ISA.registerHardware(vcpu: vcpu)
-
-    group.enter()
-    vcpu.start()
-    print("Waiting for VCPU to finish")
-    group.wait()
-    print("VCPU has finished")
+    try setupBDA(vm)
+    return vm
 }
 
 
-try main()
+func main() {
+    startup()
+}
+
+
+main()

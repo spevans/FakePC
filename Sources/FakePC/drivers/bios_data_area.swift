@@ -1,11 +1,13 @@
 //
 //  bios_data_area.swift
-//  
+//  FakePC
 //
 //  Created by Simon Evans on 02/01/2020.
+//  Copyright © 2020 Simon Evans. All rights reserved.
 //
-
-// BDA description from http://www.bioscentral.com/misc/bda.htm
+//  BIOS Data Area (BDA) holds working data set used by the BIOS ROM.
+//
+//  BDA description from http://www.bioscentral.com/misc/bda.htm
 
 import HypervisorKit
 
@@ -69,7 +71,7 @@ struct BDA {
     @BDAElement(0x5A) var cursorPositionForPage5: UInt16
     @BDAElement(0x5C) var cursorPositionForPage6: UInt16
     @BDAElement(0x5E) var cursorPositionForPage7: UInt16
-    @BDAElement(0x60) var cursorShare: UInt16
+    @BDAElement(0x60) var cursorShape: UInt16
     @BDAElement(0x62) var activeVideoPage: UInt8
     @BDAElement(0x63) var videoIOAddress: UInt16
     @BDAElement(0x65) var videoInternalModeReg: UInt8
@@ -129,6 +131,6 @@ func setupBDA(_ vm: VirtualMachine) throws {
     bda.keyboardBufferStartAddress = 0x1E
     bda.keyboardBufferEndAddress = 0x3C
 
-    
+
     diskInit()
 }
