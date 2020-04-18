@@ -17,6 +17,9 @@ class Console {
     private let window: NSWindow
     private let lock = NSLock()
     private var screen: Screen?
+
+    let keyboard = Keyboard()
+    let mouse: PS2Device? = nil
     private var fontCache: [NSImage?]
     var updateHandler: (() -> ())?
 
@@ -29,6 +32,7 @@ class Console {
         window.hasShadow = true
         window.title = "VGA"
         window.orderFront(nil)
+        window.makeFirstResponder(keyboard)
     }
 
 
@@ -46,7 +50,7 @@ class Console {
 
             self.screen?.removeFromSuperview()
             let frame = NSRect(x: 0, y: 0, width: width, height: height)
-            let newScreen = Screen(frame: frame, display: self)
+            let newScreen = Screen(frame: frame, display: self, mouse: nil)
             window.contentView?.addSubview(newScreen)
             newScreen.needsDisplay = true
             newScreen.needsLayout = true
@@ -125,11 +129,13 @@ class Console {
 private class Screen: NSView {
 
     private unowned let display: Console
+    private let mouse: NSResponder?
     fileprivate var bitmapImage: NSBitmapImageRep
 
 
-    init(frame: NSRect, display: Console) {
+    init(frame: NSRect, display: Console, mouse: NSResponder?) {
         self.display = display
+        self.mouse = mouse
 
         guard let bitmap = NSBitmapImageRep(bitmapDataPlanes: nil,
                                             pixelsWide: Int(frame.width),

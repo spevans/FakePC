@@ -1,7 +1,9 @@
 //
 //  i8254.swift
+//  FakePC
 //
 //  Created by Simon Evans on 12/04/2020.
+//  Copyright © 2020 Simon Evans. All rights reserved.
 //
 //  PIT 8254 Programmable Interval Timer.
 //
@@ -16,14 +18,11 @@ final class PIT: ISAIOHardware {
     private let timer: DispatchSourceTimer
     private var timerActivated = false
 
-    private let pic: PIC
 
-    init(pic: PIC) {
-        self.pic = pic
-
+    init() {
         timer = DispatchSource.makeTimerSource(queue: queue)
         timer.setEventHandler {
-            pic.send(irq: 0)
+            ISA.send(irq: 0)
         }
         // Setup the default 18.2 ticks/second timer, dont wait for programming
         timer.schedule(deadline: .now(), repeating: .milliseconds(55))

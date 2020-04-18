@@ -15,14 +15,17 @@ import HypervisorKit
 // The BIOS ROM can make calls using OUT port, AX where port is 0xE0 to 0xEF
 func biosCall(vm: VirtualMachine, subSystem: IOPort, function: UInt16) throws {
 
-    //NSLog("biosCall(0x\(String(subSystem, radix: 16)),0x\(String(function, radix: 16)))")
+    // Set default return error flag
+    let vcpu = vm.vcpus[0]
+    vcpu.registers.rflags.carry = true
+
     switch subSystem {
         case 0xE0: if let video = ISA.video { video.biosCall(function, vm) }
-        case 0xE1: disk(function, vm)
-        case 0xE2: serial(function, vm)
+        case 0xE1: if let drive = ISA.diskDrive(Int(vcpu.registers.dl)) { drive.biosCall(function, vm) }
+        case 0xE2: if let serial = ISA.serialPort(Int(vcpu.registers.dx)) { serial.biosCall(function, vm) }
         case 0xE3: systemServices(function, vm)
-        case 0xE4: if let keyboardController = ISA.keyboardController { keyboardController.biosCall(function, vm) }
-        case 0xE5: printer(function, vm)
+        case 0xE4: if let keyboardController = ISA.i8042 { keyboardController.biosCall(function, vm) }
+        case 0xE5: if let printer = ISA.printerPort(Int(vcpu.registers.dx)) { printer.biosCall(function, vm) }
         case 0xE6: break //try setupBDA(vm) // setup BIOS Data Area
         case 0xE8: if let rtc = ISA.rtc { rtc.biosCall(function, vm) }
         case 0xEF: debug(function, vm)
@@ -45,32 +48,6 @@ private func debug(_ ax: UInt16, _ vm: VirtualMachine) {
 }
 
 
-// INT 0x14
-private func serial(_ ax: UInt16, _ vm: VirtualMachine) {
-    let function = UInt8(ax >> 8)
-
-    enum SerialFunctions: UInt8 {
-        case initialisePort = 0
-        case sendCharacter = 1
-        case receiveCharacter = 2
-        case getPortStatus = 3
-        case extendedInitialise = 4
-        case extendedPortControl = 5
-    }
-
-    guard let serialFunction = SerialFunctions(rawValue: function) else {
-        fatalError("SERIAL: function = 0x\(String(function, radix: 16)) not implemented")
-    }
-
-    let vcpu = vm.vcpus[0]
-    let dl = vcpu.registers.dl
-    //    let al = vcpu.registers.al
-
-    let serialPort = Int(dl)
-
-    print("SERIAL: \(serialFunction) for port \(serialPort) not implemented")
-    vcpu.registers.rflags.carry = true
-}
 
 // INT 0x15
 private func systemServices(_ ax: UInt16, _ vm: VirtualMachine) {
@@ -79,51 +56,5 @@ private func systemServices(_ ax: UInt16, _ vm: VirtualMachine) {
     showRegisters(vcpu)
     print("SYSTEM: function = 0x\(String(function, radix: 16)) not implemented")
     vcpu.registers.rflags.carry = true
-
 }
-
-// INT 0x17
-private func printer(_ ax: UInt16, _ vm: VirtualMachine) {
-    let function = UInt8(ax >> 8)
-
-    enum PrinterFunctions: UInt8 {
-        case printCharacter = 0
-        case initialisePort = 1
-        case readPortStatus = 2
-    }
-
-    guard let printerFunction = PrinterFunctions(rawValue: function) else {
-        fatalError("PRINTER: function = 0x\(String(function, radix: 16)) not implemented")
-    }
-
-    let vcpu = vm.vcpus[0]
-    let dl = vcpu.registers.dl
-    //    let al = vcpu.registers.al
-
-    let printer = Int(dl)
-    guard printer == 0 else {
-        print("PRINTER: invalid device: \(printer)")
-        vcpu.registers.rflags.carry = true
-        return
-    }
-
-    let status: UInt8
-    switch printerFunction {
-        case .printCharacter:
-            let char = UnicodeScalar(vcpu.registers.al)
-            print("PRINTER: \(char)")
-            status = 0b1100_0000
-
-        case .initialisePort:
-            print("PRINTER: Init port")
-            status = 0b1100_0000
-
-        case .readPortStatus:
-            print("PRINTER: Read port status")
-            status = 0b1100_0000
-    }
-    vcpu.registers.ah = status
-    vcpu.registers.rflags.carry = false
-}
-
 

@@ -17,29 +17,6 @@ import Glibc
 import Darwin
 #endif
 
-private enum VideoFunctions: UInt8 {
-    case setVideMode = 0
-    //    case setTextCursorShape = 1
-    //    case setCursorPosition = 2
-    //    case getCursorPositionAndShape = 3
-    //    case readLightPen = 4
-    //    case setActiveDisplayPage = 5
-    case scrollUp = 6
-    case scrollDown = 7
-    case readCharacterAndColorAtCursor = 8
-    case writeCharacterAndColorAtCursor = 9
-    case writeCharacterAtCursor = 0xa
-    case setColorOrPalette = 0xb
-    case writePixel = 0xc
-    case readPixel = 0xd
-    case ttyOutput = 0xe
-    //    case getVideoState = 0xf
-    case paletteRegisterControl = 0x10
-    case characterGeneratorControl = 0x11
-    case videoSubsystemControl = 0x12
-    case writeString = 0x13
-}
-
 
 struct Font {
     let fontData: UnsafePointer<UInt8>
@@ -64,7 +41,6 @@ struct Font {
         return  UnsafeBufferPointer<UInt8>(start: fontData + offset, count: characterSize)
     }
 }
-
 
 
 class Video: ISAIOHardware {
@@ -98,6 +74,9 @@ class Video: ISAIOHardware {
         }
     }
 
+
+    // BIOS function support. FIXME: Most of these that just access the video memory should be moved
+    // in to the ROM BIOS code and directly read/write the video memory at some point
     func setVideo(mode: UInt8) {
         print("setVideoMode(\(mode))")
 
@@ -277,16 +256,42 @@ class Video: ISAIOHardware {
         }
         bda.cursorPositionForPage0 = UInt16(cursorY << 8) | UInt16(cursorX)
     }
+}
 
 
-    // INT 0x10
+// INT 10h BIOS interface
+extension Video {
+
+    private enum BIOSFunction: UInt8 {
+        case setVideMode = 0
+        //    case setTextCursorShape = 1
+        //    case setCursorPosition = 2
+        //    case getCursorPositionAndShape = 3
+        //    case readLightPen = 4
+        //    case setActiveDisplayPage = 5
+        case scrollUp = 6
+        case scrollDown = 7
+        case readCharacterAndColorAtCursor = 8
+        case writeCharacterAndColorAtCursor = 9
+        case writeCharacterAtCursor = 0xa
+        case setColorOrPalette = 0xb
+        case writePixel = 0xc
+        case readPixel = 0xd
+        case ttyOutput = 0xe
+        //    case getVideoState = 0xf
+        case paletteRegisterControl = 0x10
+        case characterGeneratorControl = 0x11
+        case videoSubsystemControl = 0x12
+        case writeString = 0x13
+    }
+
+
     func biosCall(_ ax: UInt16, _ vm: VirtualMachine) {
-
         let function = UInt8(ax >> 8)
         let al = UInt8(truncatingIfNeeded: ax)
 
         let vcpu = vm.vcpus[0]
-        guard let videoFunction = VideoFunctions(rawValue: function) else {
+        guard let videoFunction = BIOSFunction(rawValue: function) else {
             print("VIDEO: function = 0x\(String(function, radix: 16))")
             print("Unsupported function: 0x\(String(function, radix: 16))")
             return

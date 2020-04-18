@@ -13,6 +13,8 @@
 // Dummy interface for Linux (for now).
 
 class Console {
+    let keyboard: PS2Device? = nil
+    let mouse: PS2Device? = nil
 
     var updateHandler: (() -> ())?
 
