@@ -11,6 +11,177 @@
 
 import HypervisorKit
 
+
+struct KeyboardStatusFlags1 {
+    private var value: BitArray8
+    var rawValue: UInt8 { value.rawValue }
+
+    init(_ rawValue: UInt8) {
+        value = BitArray8(rawValue)
+    }
+
+    var rightShiftKeyDown: Bool {
+        get { value[0] != 0 }
+        set { value[0] = newValue ? 1 : 0 }
+    }
+    var leftShiftKeyDown:  Bool {
+        get { value[1] != 0 }
+        set { value[1] = newValue ? 1 : 0 }
+    }
+    var controlKeyDown: Bool {
+        get { value[2] != 0 }
+        set { value[2] = newValue ? 1 : 0 }
+    }
+    var altKeyDown: Bool {
+        get { value[3] != 0 }
+        set { value[3] = newValue ? 1 : 0 }
+    }
+    var scrollLockOn: Bool {
+        get { value[4] != 0 }
+        set { value[4] = newValue ? 1 : 0 }
+    }
+    var numLockOn: Bool {
+        get { value[5] != 0 }
+        set { value[5] = newValue ? 1 : 0 }
+    }
+    var capsLockOn: Bool {
+        get { value[6] != 0 }
+        set { value[6] = newValue ? 1 : 0 }
+    }
+    var insertOn: Bool {
+        get { value[7] != 0 }
+        set { value[7] = newValue ? 1 : 0 }
+    }
+}
+
+
+struct KeyboardStatusFlags2 {
+    private var value: BitArray8
+    var rawValue: UInt8 { value.rawValue }
+
+    init(_ rawValue: UInt8) {
+        value = BitArray8(rawValue)
+    }
+
+    var leftControlKeyDown: Bool {
+        get { value[0] != 0 }
+        set { value[0] = newValue ? 1 : 0 }
+    }
+    var leftAltKeyDown:  Bool {
+        get { value[1] != 0 }
+        set { value[1] = newValue ? 1 : 0 }
+    }
+    var sysReqKeyDown: Bool {
+        get { value[2] != 0 }
+        set { value[2] = newValue ? 1 : 0 }
+    }
+    var pauseKeyIsActive: Bool {
+        get { value[3] != 0 }
+        set { value[3] = newValue ? 1 : 0 }
+    }
+    var scrollLockKeyDown: Bool {
+        get { value[4] != 0 }
+        set { value[4] = newValue ? 1 : 0 }
+    }
+    var numLockKeyDown: Bool {
+        get { value[5] != 0 }
+        set { value[5] = newValue ? 1 : 0 }
+    }
+    var capsLockLeyDown: Bool {
+        get { value[6] != 0 }
+        set { value[6] = newValue ? 1 : 0 }
+    }
+    var insertKeyDown: Bool {
+        get { value[7] != 0 }
+        set { value[7] = newValue ? 1 : 0 }
+    }
+}
+
+struct KeyboardStatusFlags3 {
+    private var value: BitArray8
+    var rawValue: UInt8 { value.rawValue }
+
+    init(_ rawValue: UInt8) {
+        value = BitArray8(rawValue)
+    }
+
+    var lastScanCodeWasE1: Bool {
+        get { value[0] != 0 }
+        set { value[0] = newValue ? 1 : 0 }
+    }
+    var lastScanCodeWasE0:  Bool {
+        get { value[1] != 0 }
+        set { value[1] = newValue ? 1 : 0 }
+    }
+    var rightControlKeyDown: Bool {
+        get { value[2] != 0 }
+        set { value[2] = newValue ? 1 : 0 }
+    }
+    var rightAltKeyDown: Bool {
+        get { value[3] != 0 }
+        set { value[3] = newValue ? 1 : 0 }
+    }
+    var hasExtendedKeyboard: Bool {
+        get { value[4] != 0 }
+        set { value[4] = newValue ? 1 : 0 }
+    }
+    var forcedNumlockIsOn: Bool {
+        get { value[5] != 0 }
+        set { value[5] = newValue ? 1 : 0 }
+    }
+    var lastCodeWasFirstIDCharacter: Bool {
+        get { value[6] != 0 }
+        set { value[6] = newValue ? 1 : 0 }
+    }
+    var readingTwoByteKeyboardIDInProgress: Bool {
+        get { value[7] != 0 }
+        set { value[7] = newValue ? 1 : 0 }
+    }
+}
+
+
+struct KeyboardStatusFlags4 {
+    private var value: BitArray8
+    var rawValue: UInt8 { value.rawValue }
+
+    init(_ rawValue: UInt8) {
+        value = BitArray8(rawValue)
+    }
+
+    var scrollLockLEDOn: Bool {
+        get { value[0] != 0 }
+        set { value[0] = newValue ? 1 : 0 }
+    }
+    var numlockLEDOn:  Bool {
+        get { value[1] != 0 }
+        set { value[1] = newValue ? 1 : 0 }
+    }
+    var capsLockLEDOn: Bool {
+        get { value[2] != 0 }
+        set { value[2] = newValue ? 1 : 0 }
+    }
+
+    // Bit3 Reserved
+
+    var ackReceived: Bool {
+        get { value[4] != 0 }
+        set { value[4] = newValue ? 1 : 0 }
+    }
+    var resendCodeReceived: Bool {
+        get { value[5] != 0 }
+        set { value[5] = newValue ? 1 : 0 }
+    }
+    var ledUpdateInProgress: Bool {
+        get { value[6] != 0 }
+        set { value[6] = newValue ? 1 : 0 }
+    }
+    var keyboardTransmitError: Bool {
+        get { value[7] != 0 }
+        set { value[7] = newValue ? 1 : 0 }
+    }
+}
+
+
 struct BDA {
     static var ptr: UnsafeMutableRawPointer!
 
@@ -40,8 +211,19 @@ struct BDA {
     @BDAElement(0x12) var post2: UInt8
     @BDAElement(0x13) var memorySize: UInt16
     @BDAElement(0x15) var errorCodes: UInt16
-    @BDAElement(0x17) var keyboardShiftFlags1: UInt8
-    @BDAElement(0x18) var keyboardShiftFlags2: UInt8
+
+    @BDAElement(0x17) var keyboardStatusFlags1: UInt8
+    var keyboardStatusFlags1Flags: KeyboardStatusFlags1 {
+        get { KeyboardStatusFlags1(keyboardStatusFlags1) }
+        set { keyboardStatusFlags1 = newValue.rawValue }
+    }
+
+    @BDAElement(0x18) var keyboardStatusFlags2: UInt8
+    var keyboardStatusFlags2Flags: KeyboardStatusFlags2 {
+        get { KeyboardStatusFlags2(keyboardStatusFlags2) }
+        set { keyboardStatusFlags2 = newValue.rawValue }
+    }
+
     @BDAElement(0x19) var altNumpadWorkArea: UInt8
     @BDAElement(0x1A) var keyboardBufferHead: UInt16
     @BDAElement(0x1C) var keyboardBufferTail: UInt16
@@ -105,7 +287,16 @@ struct BDA {
 
 
     @BDAElement(0x96) var keyboardStatusFlags3: UInt8
+    var keyboardStatusFlags3Flags: KeyboardStatusFlags3 {
+        get { KeyboardStatusFlags3(keyboardStatusFlags3) }
+        set { keyboardStatusFlags3 = newValue.rawValue }
+    }
+
     @BDAElement(0x97) var keyboardStatusFlags4: UInt8
+    var keyboardStatusFlags4Flags: KeyboardStatusFlags4 {
+        get { KeyboardStatusFlags4(keyboardStatusFlags4) }
+        set { keyboardStatusFlags4 = newValue.rawValue }
+    }
 }
 
 

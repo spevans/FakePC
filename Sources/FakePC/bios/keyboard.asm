@@ -14,7 +14,11 @@
 
 int_16h:
                 sti
+
+                ;; Make a HV call for now let it process the keyboard request
                 out     0xe4, ax
+                retf    2               ; preserve ZF
+
                 push    ds
                 push    bx
                 mov     bx, 0x40

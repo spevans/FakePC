@@ -59,13 +59,9 @@ func dumpMemory(_ memory: MemoryRegion, offset: Int, count: Int) {
 }
 
 
-private var count = 0
+private var vmExitCount = UInt64(0)
 func processVMExit(_ vcpu: VirtualMachine.VCPU, _ vmExit: VMExit) throws -> Bool {
-    count += 1
-    guard count < 500_000 else {
-        print("Max VMExits reached")
-        return true
-    }
+    vmExitCount += 1
 
     switch vmExit {
         case .ioOutOperation(let port, let data):
