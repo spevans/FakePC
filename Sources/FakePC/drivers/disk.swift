@@ -22,7 +22,7 @@ enum DiskError: Error {
 final class Disk {
 
     let imageURL: URL
-    let data: Data
+    var data: Data
     let sectorSize = 512
     let sectorsPerTrack: Int
     let tracksPerHead: Int
@@ -30,6 +30,7 @@ final class Disk {
     let isReadOnly: Bool
     let isHardDisk = false
     private(set) var lastStatus: Status = .ok
+    private var currentTrack = 0
 
     var isFloppyDisk: Bool { !isHardDisk }
 
@@ -50,10 +51,17 @@ final class Disk {
             print("Image size != floppy size")
             return nil
         }
-        isReadOnly = readOnly
+        isReadOnly = !FileManager.default.isWritableFile(atPath: imageName)
     }
 
     var totalSectors: Int { (data.count + sectorSize - 1) / sectorSize }
+
+    func trackAndSectorFrom(cx: UInt16) -> (Int, Int) {
+        let sector = Int(cx) & 0x3f
+        let track = Int(cx) >> 8 | (Int(cx & 0xc0) << 10)
+        return (track, sector)
+    }
+
 
     func logicalSector(cx: UInt16, dh: UInt8) -> Int? {
         let head = Int(dh)    // DH = head
@@ -68,11 +76,82 @@ final class Disk {
         return logical
     }
 
-    func readSectors(into buffer: UnsafeMutableRawBufferPointer, fromSector: Int, count: Int) {
-        let offset = fromSector * sectorSize
+
+    struct SectorOperation {
+        let startSector: Int
+        let sectorCount: Int
+        let bufferOffset: Int
+        let bufferSize: Int
+    }
+
+    // Used by BIOS calls for reading/writing/verifying sectors
+    // Converts al, cx, dx, es:bx into a SectorOperation and validates input
+    func validateSectorOperation(vcpu: VirtualMachine.VCPU) -> Result<SectorOperation, Disk.Status> {
+        guard let startSector = self.logicalSector(cx: vcpu.registers.cx, dh: vcpu.registers.dh) else {
+            return .failure(.sectorNotFound)
+        }
+        let sectorCount = Int(vcpu.registers.al)
+        guard sectorCount > 0 && sectorCount <= 63 else {
+            return .failure(.invalidNumberOfSectors)
+        }
+
+        let size = sectorCount * self.sectorSize
+        // Check there is enough space from the buffer to end for segment  (boundary overflow)
+        let bx = Int(vcpu.registers.bx)
+        guard 0x10000 - bx >= size else {
+            return .failure(.dmaOver64KBoundary)
+        }
+        guard startSector + sectorCount <= self.totalSectors else {
+            return .failure(.invalidNumberOfSectors)
+        }
+        let offset = Int(vcpu.registers.es.base) + bx
+        //print("Copying \(size) bytes to 0x\(String(offset, radix: 16))")
+        let operation = SectorOperation(startSector: startSector, sectorCount: sectorCount, bufferOffset: offset, bufferSize: size)
+        return .success(operation)
+    }
+
+
+    func readSectors(into buffer: UnsafeMutableRawBufferPointer, fromSector sector: Int, count: Int) -> Status {
+        let offset = sector * sectorSize
         let size = count * sectorSize
         let range = offset..<(offset + size)
+        assert(size == buffer.count)
         data.copyBytes(to: buffer, from: range)
+        return .ok
+    }
+
+
+    func verifySectors(in buffer: UnsafeRawBufferPointer, toSector sector: Int, count: Int) -> Status {
+        let offset = sector * sectorSize
+        let size = count * sectorSize
+        let range = offset..<(offset + size)
+        assert(size == buffer.count)
+        let dataInMemory = Data(buffer)
+        if data[range] == dataInMemory {
+            return .ok
+        } else {
+            return .dataError
+        }
+    }
+
+
+    func writeSectors(from buffer: UnsafeRawBufferPointer, toSector sector: Int, count: Int) -> Status {
+        let offset = sector * sectorSize
+        let size = count * sectorSize
+        let range = offset..<(offset + size)
+        assert(size == buffer.count)
+        data.replaceSubrange(range, with: buffer)
+        return .ok
+    }
+
+
+    func setCurrentTrack(_ track: Int) -> Status {
+        if track < tracksPerHead {
+            currentTrack = track
+            return .ok
+        } else {
+            return .invalidMedia
+        }
     }
 }
 
@@ -90,12 +169,27 @@ extension Disk {
         case formatTrackSetBadSectors = 6
         case formatDrive = 7
         case readDriveParameters = 8
-        case initialiseHDController = 9
-        case readDASDType = 0x15
+        case initialiseHDControllerTables = 9
+        case readLongSector = 0xA
+        case writeLongSector = 0xB
+        case seekToCylinder = 0xC
+        case alternateDiskReset = 0xD
+        case readSectorBuffer = 0xE
+        case writeSectorBuffer = 0xF
+        case testForDriveReady = 0x10
+        case recalibrateDrive = 0x11
+        case controllerRamDiagnostic = 0x12
+        case driveDiagnostic = 0x13
+        case controllerInternalDiagnostic = 0x14
+        case getDiskType = 0x15
         case changeOfDiskStatus = 0x16
+        case setDiskTypeForFormat = 0x17
+        case setMediaTypeForFormat = 0x18
+        case parkFixedDiskHeads = 0x19
+        case formatESDIDriveUnit = 0x1A
     }
 
-    enum Status: UInt8 {
+    enum Status: UInt8, Error {
         case ok = 0
         case invalidCommand = 1
         case badSector = 2
@@ -108,13 +202,14 @@ extension Disk {
         case dmaOver64KBoundary = 9
         case badSectorDetected = 0xa
         case badTrackDetected = 0xb
-        case mediaTypeNotFound = 0xc
+        case invalidMedia = 0xc
         case invalidNumberOfSectors = 0xd
         case addressMarkDetected = 0xe
         case dmaOutOfRange = 0xf
         case dataError = 0x10
         case correctedDataError = 0x11
         case controllerFailure = 0x20
+        case noMediaInDrive = 0x31
         case seekFailure = 0x40
         case driveTimedOut = 0x80
         case driveNotReady = 0xAA
@@ -122,97 +217,5 @@ extension Disk {
         case writeFault = 0xCC
         case statusError = 0xE0
         case senseOperationFailed = 0xFF
-
-
-        func setError(_ vcpu: VirtualMachine.VCPU) {
-            vcpu.registers.ah = self.rawValue
-            vcpu.registers.rflags.carry = (self != .ok)
-        }
-    }
-
-
-    func biosCall(_ ax: UInt16, _ vm: VirtualMachine) {
-        let function = UInt8(ax >> 8)
-        let vcpu = vm.vcpus[0]
-        let dl = vcpu.registers.dl
-        let al = vcpu.registers.al
-
-        guard let diskFunction = BIOSFunction(rawValue: function) else {
-            fatalError("DISK: function = 0x\(String(function, radix: 16)) drive = \(String(dl, radix: 16))H not implemented")
-        }
-
-
-        let status: Status
-
-        switch diskFunction {
-
-            case .resetDisk: // Reset
-                status = .ok
-
-            case .getStatus: // Get status
-                status = lastStatus
-
-            case .readSectors:
-                guard let startSector = self.logicalSector(cx: vcpu.registers.cx, dh: vcpu.registers.dh) else {
-                    status = .invalidCommand
-                    break
-                }
-                let sectorCount = Int(al)
-                guard sectorCount > 0 && sectorCount <= 63 else {
-                    status = .invalidNumberOfSectors
-                    break
-                }
-
-                let size = sectorCount * self.sectorSize
-                // Check there is enough space from the buffer to end for segment  (boundary overflow)
-                let bx = Int(vcpu.registers.bx)
-                guard 0x10000 - bx >= size else {
-                    status = .dmaOver64KBoundary
-                    break
-                }
-                guard startSector + sectorCount <= self.totalSectors else {
-                    status = .invalidNumberOfSectors
-                    break
-                }
-                let offset = Int(vcpu.registers.es.base) + bx
-                //print("Copying \(size) bytes to 0x\(String(offset, radix: 16))")
-                let ptr = vm.memoryRegions[0].rawBuffer.baseAddress!.advanced(by: offset)
-                let buffer = UnsafeMutableRawBufferPointer(start: ptr, count: size)
-                self.readSectors(into: buffer, fromSector: startSector, count: sectorCount)
-                //        print("Reading \(sectorCount) sectors from \(startSector) -> \(hexNum(vcpu.registers.es.selector, width: 4)):\(hexNum(bx, width: 4))")
-
-                status = .ok
-
-            case .readDriveParameters:
-                showRegisters(vcpu)
-                vcpu.registers.bl = 04
-                let cylinders = self.tracksPerHead
-                vcpu.registers.ch = UInt8(cylinders & 0xff)
-                vcpu.registers.cl = UInt8(self.sectorsPerTrack & 0x3f) | (UInt8(cylinders >> 6) & 0xc0)
-                vcpu.registers.dh = UInt8(self.heads - 1)
-                vcpu.registers.dl = 1
-                status = .ok
-
-            case .readDASDType:
-                if self.isHardDisk {
-                    vcpu.registers.ah = 3 // Fix
-                    let sectors = UInt32(self.totalSectors)
-                    vcpu.registers.cx = UInt16(sectors >> 16)
-                    vcpu.registers.dx = UInt16(sectors & 0xffff)
-                } else {
-                    vcpu.registers.ah = 1 // Floppy with no change detection (FIXME)
-                }
-                vcpu.registers.rflags.carry = false
-                return // Bypass setError()
-
-            case .changeOfDiskStatus:
-                status = .ok
-
-        case .writeSectors, .verifySectors, .formatTrack, .formatTrackSetBadSectors, .formatDrive, .initialiseHDController:
-            fatalError("disk: \(diskFunction) not implemented")
-
-        }
-        status.setError(vcpu)
-        lastStatus = status
     }
 }
