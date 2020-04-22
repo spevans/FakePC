@@ -146,10 +146,31 @@ loaded_ok:
                 jmp     0x0:0x7C00
 
 
-                ;; Time of day
-int_1ah:
-                out 0xE8, ax
+                ;; Time of day - handle functions 0 & 1 directly, pass the others to the HV
+int_1ah:        test    ah, ah
+                jnz     int_1a_func1
+                push    ds
+                xor     dx, dx
+                mov     ds, dx
+                mov     dx, [0x46C]         ; CX:DX number of clock ticks since midnight
+                mov     cx, [0x46E]
+                mov     al, byte [0x470]    ; Midnight flag
+                pop     ds
                 iret
+
+int_1a_func1:   cmp     ah, 1
+                jnz     int_1a_others
+                push    ds
+                xor     ax, ax
+                mov     ds, ax
+                mov     [0x46E], cx
+                mov     [0x46C], dx
+                mov     byte [0x470], 0
+                pop     ds
+                iret
+
+int_1a_others:  out 0xE8, ax
+                retf    2
 
 print:          ;; DS:SI => ASCIIZ string
                 lodsb

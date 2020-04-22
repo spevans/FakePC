@@ -43,7 +43,7 @@ irq_0:
                 cmp     eax, 1572480    ; 24 hours * 3600 seconds * 18.2 ticks/second
                 jl      .not_midnight
                 xor     eax, eax
-                mov     byte [0x470], 1  ; 'Midnight' flag signals 24 hours have passed since start
+                inc     byte [0x470],   ; 'Midnight' flag signals 24 hours have passed since start
 .not_midnight:
                 mov     [0x46C], eax
                 int     0x1c

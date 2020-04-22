@@ -12,6 +12,22 @@ import Glibc
 import Darwin
 #endif
 
+
+extension Bool {
+    init(_ value: Int) {
+        precondition(value == 0 || value == 1)
+        self = value == 1 ? true : false
+    }
+}
+
+
+extension Int {
+    init(_ value: Bool) {
+        self = value ? 1 : 0
+    }
+}
+
+
 extension UnsafeMutableRawPointer {
     func unalignedStoreBytes<T>(of value: T, toByteOffset offset: Int, as type: T.Type) {
         var _value = value
