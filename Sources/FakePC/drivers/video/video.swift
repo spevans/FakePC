@@ -163,6 +163,7 @@ class Video: ISAIOHardware {
             // Clear the last row
             vramBuffer.advanced(by: offset).initializeMemory(as: UInt16.self, repeating: value, count: widthInCharacters)
         }
+        display.updateDisplay()
     }
 
 
@@ -193,6 +194,7 @@ class Video: ISAIOHardware {
             // Clear the last row
             vramBuffer.advanced(by: offset).initializeMemory(as: UInt16.self, repeating: value, count: widthInCharacters)
         }
+        display.updateDisplay()
     }
 
 
@@ -230,7 +232,7 @@ class Video: ISAIOHardware {
                     cursorX = Int(screenMode.textColumns)
                     cursorY -= 1
                     if cursorY < 0 { cursorY = 0 }
-            }
+                }
 
             case 0xD: // Carriage Return
                 cursorX = 0
@@ -240,7 +242,7 @@ class Video: ISAIOHardware {
                 if cursorY >= Int(screenMode.textRows) {
                     cursorY = Int(screenMode.textRows - 1)
                     scrollUp(lines: 1, color: 07, startRow: 0, startColumn: 0, endRow: UInt8(screenMode.textRows - 1), endColumn: UInt8(screenMode.textColumns - 1))
-            }
+                }
 
             default:
                 writeCharAndColor(character: character, page: page, color: nil, x: cursorX, y: cursorY)
@@ -252,7 +254,7 @@ class Video: ISAIOHardware {
                         scrollUp(lines: 1, color: 07, startRow: 0, startColumn: 0, endRow: UInt8(screenMode.textRows - 1), endColumn: UInt8(screenMode.textColumns - 1))
                         cursorY = Int(screenMode.textRows - 1)
                     }
-            }
+                }
         }
         bda.cursorPositionForPage0 = UInt16(cursorY << 8) | UInt16(cursorX)
     }
