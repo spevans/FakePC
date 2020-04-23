@@ -187,13 +187,13 @@ class Keyboard: NSResponder, PS2Device {
 
 
     override func keyDown(with event: NSEvent) {
-        NSLog("Keydown: \(String(event.keyCode, radix: 16)) modfier flags: \(event.modifierFlags)")
+        //NSLog("Keydown: \(String(event.keyCode, radix: 16)) modfier flags: \(event.modifierFlags)")
         sendMakeCodesForKeyCode(event.keyCode)
     }
 
 
     override func keyUp(with event: NSEvent) {
-        NSLog("Keyup: \(String(event.keyCode, radix: 16)) modfier flags: \(event.modifierFlags)")
+        //NSLog("Keyup: \(String(event.keyCode, radix: 16)) modfier flags: \(event.modifierFlags)")
         sendBreakCodesForKeyCode(event.keyCode)
     }
 

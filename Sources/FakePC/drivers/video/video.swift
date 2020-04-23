@@ -216,10 +216,7 @@ class Video: ISAIOHardware {
 
 
     func ttyOutput(character: UInt8, page: UInt8, gfxColor: UInt8) {
-        print("TTY Output: \(String(character, radix: 16)), \(String(Unicode.Scalar(character)))")
-        if character == 0x31 {
-            print("1")
-        }
+        //print("TTY Output: \(String(character, radix: 16)), \(String(Unicode.Scalar(character)))")
         var bda = BDA()
         let cursor = bda.cursorPositionForPage0
         var cursorX = Int(cursor & 0xff)

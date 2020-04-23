@@ -38,6 +38,12 @@ private func debug(_ ax: UInt16, _ vm: VirtualMachine) {
     print("BIOS Debug call")
     let bda = BDA()
     showRegisters(vm.vcpus[0])
+    let ip = vm.vcpus[0].registers.ip
+    if ip >= 0xf30a && ip <= 0xf340 {
+        return
+    }
+
+
     switch ax {
         case 0x01: print("Entering IRQ0: bda.timerCount:", bda.timerCount)
         case 0x02: print("Exiting IRQ0: bda.timerCount:", bda.timerCount)

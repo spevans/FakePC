@@ -1,9 +1,11 @@
 //
 //  i8259.swift
+//  FakePC
 //
 //  Created by Simon Evans on 02/01/2020.
+//  Copyright © 2020 Simon Evans. All rights reserved.
 //
-//  PIC 8259 Programmable Interrupt Controllr emulation and IRQ injection.
+//  PIC 8259 Programmable Interrupt Controller emulation and IRQ injection.
 //
 
 import HypervisorKit
@@ -30,10 +32,10 @@ private extension UInt8 {
 final class PIC: ISAIOHardware {
 
     enum InitSequence {
-    case waitingForICW2
-    case waitingForICW3
-    case waitingForICW4
-    case ready
+        case waitingForICW2
+        case waitingForICW3
+        case waitingForICW4
+        case ready
     }
 
 
@@ -99,14 +101,14 @@ final class PIC: ISAIOHardware {
 
     struct OCW2 {
         enum Command: UInt8 {
-        case rotateInAutoEOIModeClear = 0
-        case nonSpecificEOI = 1
-        case noOperation = 2
-        case specificEOI = 3
-        case rotateInAutoEOIModeSet = 4
-        case rotateOnNonSpecificEOI = 5
-        case setPriorityCommand = 6
-        case rotateOnSpecificEOI = 7
+            case rotateInAutoEOIModeClear = 0
+            case nonSpecificEOI = 1
+            case noOperation = 2
+            case specificEOI = 3
+            case rotateInAutoEOIModeSet = 4
+            case rotateOnNonSpecificEOI = 5
+            case setPriorityCommand = 6
+            case rotateOnSpecificEOI = 7
         }
 
         private let value: BitArray8
@@ -201,18 +203,18 @@ final class PIC: ISAIOHardware {
             // IRQ masked - do nothing
             return
         }
-        print("Setting irqBit: \(irqBit) for irq: \(irq)")
+//        print("Setting irqBit: \(irqBit) for irq: \(irq)")
         interruptRequestRegister |= irqBit
         // if this is the
 
         if let lbs = inServiceRegister.lowestBitSet, irq <= lbs {
-            print("current interrupt in service: \(lbs), inServiceRegister=\(inServiceRegister)")
+//            print("current interrupt in service: \(lbs), inServiceRegister=\(inServiceRegister)")
             // There is an IRQ in service at the moment and it is a higher
             // priority than the request irq, so return for now
             return
         }
         inServiceRegister.set(bit: irq)
-        print("Queuing irq:", UInt8(irq) + vectorAddressBase)
+//        print("Queuing irq:", UInt8(irq) + vectorAddressBase)
         vcpu.queue(irq: UInt8(irq) + vectorAddressBase)
     }
 
@@ -222,7 +224,7 @@ final class PIC: ISAIOHardware {
         if let nextIrq = (interruptRequestRegister & ~interruptMaskRegister).lowestBitSet {
             interruptRequestRegister.clearLowestBitSet()
             inServiceRegister.set(bit: nextIrq)
-            print("PIC: Signalling next IRQ: \(nextIrq)")
+//            print("PIC: Signalling next IRQ: \(nextIrq)")
             vcpu.queue(irq: UInt8(nextIrq) + vectorAddressBase)
         }
     }
@@ -232,92 +234,92 @@ final class PIC: ISAIOHardware {
     // IO port is 0x21 or 0xA1, false if port is 0x20, 0xA0
     func writeByte(_ byte: UInt8, a0: Bool) throws {
 
-        print("PIC write: a0: \(a0) byte: \(String(byte, radix: 16)), state: \(state)")
+//        print("PIC write: a0: \(a0) byte: \(String(byte, radix: 16)), state: \(state)")
 
         let d4 = byte & 0x10 == 0x10
 
         switch (state, a0, d4) {
 
             case (.ready, false, true):
-            // IF an ICW1 is seen, start initialisation
-            if a0 == false, let icw1 = ICW1(value: byte) {
-                self.icw1 = icw1
-                 // Start initalisation loop
-                interruptMaskRegister = 0
-                ocw3 = OCW3(2) // Set IRR read
-                if icw1.isIcw4Needed == false {
-                    icw4 = ICW4(value: 0)
-                }
-                // Clear any pending IRQ sent to the CPU.
-                vcpu.clearPendingIRQ()
-                state = .waitingForICW2
-            }
-
-        case (.waitingForICW2, _, _):
-            if a0 {
-                let icw2 = ICW2(value: byte)
-                vectorAddressBase = icw2.irqBase
-                print("vectorAddressBase:", vectorAddressBase)
-                if icw1.isCascade {
-                    state = .waitingForICW3
-                } else if icw1.isIcw4Needed {
-                    state = .waitingForICW4
-                } else {
-                    state = .ready
-                }
-            }
-
-        case (.waitingForICW3, _, _):
-            if a0 {
-                self.icw3 = ICW3(value: byte)
-                if icw1.isIcw4Needed {
-                    state = .waitingForICW4
-                } else {
-                    state = .ready
-                }
-            }
-
-        case (.waitingForICW4, _, _):
-            if a0 {
-                self.icw4 = ICW4(value: byte)
-                state = .ready
-            }
-
-        case (.ready, _, _):
-            // Look for Operation Control Words
-            if a0 { // OCW1
-                self.ocw1 = OCW1(value: byte)
-                self.interruptMaskRegister = byte
-            } else {
-                if let ocw2 = OCW2(value: byte) {
-                    self.ocw2 = ocw2
-
-                    switch ocw2.command {
-                    case .nonSpecificEOI:
-                        // Clear current in service interrupt, set next one
-                        inServiceRegister.clearLowestBitSet()
-                        process()
-
-                    case .rotateInAutoEOIModeClear: fallthrough
-                    case .specificEOI: fallthrough
-                    case .rotateInAutoEOIModeSet: fallthrough
-                    case .rotateOnNonSpecificEOI: fallthrough
-                    case .setPriorityCommand: fallthrough
-                    case .rotateOnSpecificEOI:
-                        print("PIC: Ignoring command: \(ocw2.command)")
-
-                    case .noOperation: break
+                // IF an ICW1 is seen, start initialisation
+                if a0 == false, let icw1 = ICW1(value: byte) {
+                    self.icw1 = icw1
+                    // Start initalisation loop
+                    interruptMaskRegister = 0
+                    ocw3 = OCW3(2) // Set IRR read
+                    if icw1.isIcw4Needed == false {
+                        icw4 = ICW4(value: 0)
                     }
+                    // Clear any pending IRQ sent to the CPU.
+                    vcpu.clearPendingIRQ()
+                    state = .waitingForICW2
+            }
+
+            case (.waitingForICW2, _, _):
+                if a0 {
+                    let icw2 = ICW2(value: byte)
+                    vectorAddressBase = icw2.irqBase
+//                    print("vectorAddressBase:", vectorAddressBase)
+                    if icw1.isCascade {
+                        state = .waitingForICW3
+                    } else if icw1.isIcw4Needed {
+                        state = .waitingForICW4
+                    } else {
+                        state = .ready
+                    }
+            }
+
+            case (.waitingForICW3, _, _):
+                if a0 {
+                    self.icw3 = ICW3(value: byte)
+                    if icw1.isIcw4Needed {
+                        state = .waitingForICW4
+                    } else {
+                        state = .ready
+                    }
+            }
+
+            case (.waitingForICW4, _, _):
+                if a0 {
+                    self.icw4 = ICW4(value: byte)
+                    state = .ready
+            }
+
+            case (.ready, _, _):
+                // Look for Operation Control Words
+                if a0 { // OCW1
+                    self.ocw1 = OCW1(value: byte)
+                    self.interruptMaskRegister = byte
+                } else {
+                    if let ocw2 = OCW2(value: byte) {
+                        self.ocw2 = ocw2
+
+                        switch ocw2.command {
+                            case .nonSpecificEOI:
+                                // Clear current in service interrupt, set next one
+                                inServiceRegister.clearLowestBitSet()
+                                process()
+
+                            case .rotateInAutoEOIModeClear: fallthrough
+                            case .specificEOI: fallthrough
+                            case .rotateInAutoEOIModeSet: fallthrough
+                            case .rotateOnNonSpecificEOI: fallthrough
+                            case .setPriorityCommand: fallthrough
+                            case .rotateOnSpecificEOI:
+                                print("PIC: Ignoring command: \(ocw2.command)")
+
+                            case .noOperation: break
+                        }
 
 
-                } else if let ocw3 = OCW3(value: byte) {
-                    self.ocw3 = ocw3
-                }
+                    } else if let ocw3 = OCW3(value: byte) {
+                        self.ocw3 = ocw3
+                    }
             }
 
             default: break
         }
-        print("PIC: write finished, state: \(state)")
+//        print("PIC: write finished, state: \(state)")
     }
 
 

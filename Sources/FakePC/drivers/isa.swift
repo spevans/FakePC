@@ -151,7 +151,7 @@ struct ISA {
 
 
     static func ioOut(port: IOPort, dataWrite: VMExit.DataWrite) throws {
-        print("IO-OUT: \(String(port, radix: 16)):", dataWrite)
+//        print("IO-OUT: \(String(port, radix: 16)):", dataWrite)
         if let hardware = ioPortHandlers[port] {
             try hardware.ioOut(port: port, operation: dataWrite)
         }
@@ -159,7 +159,7 @@ struct ISA {
 
 
     static func ioIn(port: IOPort, dataRead: VMExit.DataRead) -> VMExit.DataWrite {
-        print("IO-IN: \(String(port, radix: 16)):", dataRead)
+  //      print("IO-IN: \(String(port, radix: 16)):", dataRead)
         if let hardware = ioPortHandlers[port] {
             return hardware.ioIn(port: port, operation: dataRead)
         } else {
