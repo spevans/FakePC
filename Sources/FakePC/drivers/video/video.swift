@@ -48,11 +48,11 @@ class Video: ISAIOHardware {
     private let vram: MemoryRegion
     private let font: Font
     private(set) var screenMode: ScreenMode
-    private let display: Console
+    private var display: Console
 
 
-    init(vram: MemoryRegion, display: Console) throws {
-        self.vram = vram
+    init(vm: VirtualMachine, display: Console) throws {
+        self.vram = try vm.addMemory(at: 0xA0000, size: 0x20000) // 128k VRAM
         screenMode = ScreenMode.screenModeFor(mode: 7)!
         font = Font(width: 8, height: 16, data: font_vga_8x16.data)
         self.display = display
@@ -78,11 +78,11 @@ class Video: ISAIOHardware {
     // BIOS function support. FIXME: Most of these that just access the video memory should be moved
     // in to the ROM BIOS code and directly read/write the video memory at some point
     func setVideo(mode: UInt8) {
-        print("setVideoMode(\(mode))")
+        debugLog("setVideoMode(\(mode))")
 
         //        let clearScreen = (mode & 0x80) == 0
         guard let newMode = ScreenMode.screenModeFor(mode: Int(mode & 0x3f)) else {
-            print("Unsupported video mode")
+            debugLog("Unsupported video mode")
             return
         }
 
@@ -216,7 +216,6 @@ class Video: ISAIOHardware {
 
 
     func ttyOutput(character: UInt8, page: UInt8, gfxColor: UInt8) {
-        //print("TTY Output: \(String(character, radix: 16)), \(String(Unicode.Scalar(character)))")
         var bda = BDA()
         let cursor = bda.cursorPositionForPage0
         var cursorX = Int(cursor & 0xff)
@@ -229,7 +228,7 @@ class Video: ISAIOHardware {
                     cursorX = Int(screenMode.textColumns)
                     cursorY -= 1
                     if cursorY < 0 { cursorY = 0 }
-                }
+            }
 
             case 0xD: // Carriage Return
                 cursorX = 0
@@ -239,7 +238,7 @@ class Video: ISAIOHardware {
                 if cursorY >= Int(screenMode.textRows) {
                     cursorY = Int(screenMode.textRows - 1)
                     scrollUp(lines: 1, color: 07, startRow: 0, startColumn: 0, endRow: UInt8(screenMode.textRows - 1), endColumn: UInt8(screenMode.textColumns - 1))
-                }
+            }
 
             default:
                 writeCharAndColor(character: character, page: page, color: nil, x: cursorX, y: cursorY)
@@ -251,7 +250,7 @@ class Video: ISAIOHardware {
                         scrollUp(lines: 1, color: 07, startRow: 0, startColumn: 0, endRow: UInt8(screenMode.textRows - 1), endColumn: UInt8(screenMode.textColumns - 1))
                         cursorY = Int(screenMode.textRows - 1)
                     }
-                }
+            }
         }
         bda.cursorPositionForPage0 = UInt16(cursorY << 8) | UInt16(cursorX)
     }
@@ -291,8 +290,8 @@ extension Video {
 
         let vcpu = vm.vcpus[0]
         guard let videoFunction = BIOSFunction(rawValue: function) else {
-            print("VIDEO: function = 0x\(String(function, radix: 16))")
-            print("Unsupported function: 0x\(String(function, radix: 16))")
+            debugLog("VIDEO: function = 0x\(String(function, radix: 16))")
+            debugLog("Unsupported function: 0x\(String(function, radix: 16))")
             return
         }
 
@@ -365,7 +364,7 @@ extension Video {
             }
 
             case .writeString:
-                print("Ignoreing .writeString")
+                debugLog("Ignoreing .writeString")
                 break
             /*            let bl = vcpu.registers.bl
              let bh = vcpu.registers.bh

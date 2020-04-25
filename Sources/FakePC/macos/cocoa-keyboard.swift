@@ -5,7 +5,8 @@
 //  Created by Simon Evans on 18/04/2020.
 //  Copyright © 2020 Simon Evans. All rights reserved.
 //
-// Implements a PS2 Keyboard. Mostly converting NSEvents to Keyboard Scan Codes.
+//  Implements a PS2 Keyboard. Mostly converting NSEvents to Keyboard Scan Codes.
+//
 
 #if os(macOS)
 

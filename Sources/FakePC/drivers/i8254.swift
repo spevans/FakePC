@@ -40,7 +40,7 @@ final class PIT: ISAIOHardware {
 
     func process() {
         if !timerActivated {
-            print("Activating timer")
+            debugLog("i8254: Activating timer")
             timer.activate()
             timerActivated = true
         }

@@ -46,7 +46,7 @@ extension Serial {
             case .receiveCharacter:     fallthrough
             case .getPortStatus:        fallthrough
             case .extendedInitialise:   fallthrough
-            case .extendedPortControl:  print("SERIAL: \(serialFunction) not implemented")
+            case .extendedPortControl:  debugLog("SERIAL: \(serialFunction) not implemented")
         }
         vcpu.registers.rflags.carry = true
     }

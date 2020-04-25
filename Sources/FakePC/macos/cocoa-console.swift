@@ -13,12 +13,12 @@
 import Cocoa
 
 
-class Console {
+class CocoaConsole: Console {
     private let window: NSWindow
     private let lock = NSLock()
     private var screen: Screen?
 
-    let keyboard = Keyboard()
+    let keyboard: PS2Device? = Keyboard()
     let mouse: PS2Device? = nil
     private var fontCache: [NSImage?]
     var updateHandler: (() -> ())?
@@ -32,7 +32,10 @@ class Console {
         window.hasShadow = true
         window.title = "VGA"
         window.orderFront(nil)
-        window.makeFirstResponder(keyboard)
+        guard let responder = keyboard as? NSResponder else {
+            fatalError("Cant cast keyboard as NSResponsder")
+        }
+        window.makeFirstResponder(responder)
     }
 
 
@@ -68,7 +71,7 @@ class Console {
     }
 
 
-    func rasteriseTextMemory(screenMode: ScreenMode, font: Font, newCharacter: (Int, Int) -> (UInt8, UInt8)?) {
+    func rasteriseTextMemory(screenMode: ScreenMode, font: Font, newCharacter: (Int, Int) -> (character: UInt8, attribute: UInt8)?) {
 
         func characterImage(character: UInt8, attribute: UInt8) -> NSImage {
             let offset = (Int(character) * font.characterSize)
@@ -128,12 +131,12 @@ class Console {
 
 private class Screen: NSView {
 
-    private unowned let display: Console
+    private unowned let display: CocoaConsole
     private let mouse: NSResponder?
     fileprivate var bitmapImage: NSBitmapImageRep
 
 
-    init(frame: NSRect, display: Console, mouse: NSResponder?) {
+    init(frame: NSRect, display: CocoaConsole, mouse: NSResponder?) {
         self.display = display
         self.mouse = mouse
 

@@ -48,7 +48,7 @@ struct ISA {
     // There is only one ISA bus so everything here is static as this
     // represents a singleton.
 
-    static private var console: Console!
+    static private(set) var console: Console!
     static private var pic1: PIC?
     static private var pic2: PIC?
     static private var pit: PIT?
@@ -86,12 +86,11 @@ struct ISA {
         rtc = RTC()
         try registerIOPort(ports: 0x70...0x71, rtc!)
 
-        let videoRam = try vm.addMemory(at: 0xA0000, size: 0x20000) // 128k VRAM
-        video = try Video(vram: videoRam, display: console)
+        video = try Video(vm: vm, display: console)
         try registerIOPort(ports: 0x3B0...0x3DF, video!)
 
 #if os(Linux)
-        let image = "/home/spse/src/osx/FakePC/FD13FLOP.IMG"
+        let image = "/home/spse/src/osx/FakePC/pc-dos.img"
 #else
         let image = "/Users/spse/Files/src/osx/FakePC/pc-dos.img"
 #endif
@@ -151,7 +150,7 @@ struct ISA {
 
 
     static func ioOut(port: IOPort, dataWrite: VMExit.DataWrite) throws {
-//        print("IO-OUT: \(String(port, radix: 16)):", dataWrite)
+//        debugLog("IO-OUT: \(String(port, radix: 16)):", dataWrite)
         if let hardware = ioPortHandlers[port] {
             try hardware.ioOut(port: port, operation: dataWrite)
         }
@@ -159,7 +158,7 @@ struct ISA {
 
 
     static func ioIn(port: IOPort, dataRead: VMExit.DataRead) -> VMExit.DataWrite {
-  //      print("IO-IN: \(String(port, radix: 16)):", dataRead)
+  //      debugLog("IO-IN: \(String(port, radix: 16)):", dataRead)
         if let hardware = ioPortHandlers[port] {
             return hardware.ioIn(port: port, operation: dataRead)
         } else {
@@ -176,7 +175,7 @@ struct ISA {
             pic2!.send(irq: irq - 8)
         }
         else {
-            print("Invalid IRQ: \(irq)")
+            debugLog("Invalid IRQ: \(irq)")
         }
     }
 

@@ -40,15 +40,15 @@ extension Printer {
         switch printerFunction {
             case .printCharacter:
                 let char = UnicodeScalar(vcpu.registers.al)
-                print("PRINTER: \(char)")
+                debugLog("PRINTER: \(char)")
                 status = 0b1100_0000
 
             case .initialisePort:
-                print("PRINTER: Init port")
+                debugLog("PRINTER: Init port")
                 status = 0b1100_0000
 
             case .readPortStatus:
-                print("PRINTER: Read port status")
+                debugLog("PRINTER: Read port status")
                 status = 0b1100_0000
         }
 

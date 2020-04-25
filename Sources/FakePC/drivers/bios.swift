@@ -35,7 +35,7 @@ func biosCall(vm: VirtualMachine, subSystem: IOPort, function: UInt16) throws {
 
 
 private func debug(_ ax: UInt16, _ vm: VirtualMachine) {
-    print("BIOS Debug call")
+    debugLog("BIOS Debug call")
     let bda = BDA()
     showRegisters(vm.vcpus[0])
     let ip = vm.vcpus[0].registers.ip
@@ -45,10 +45,10 @@ private func debug(_ ax: UInt16, _ vm: VirtualMachine) {
 
 
     switch ax {
-        case 0x01: print("Entering IRQ0: bda.timerCount:", bda.timerCount)
-        case 0x02: print("Exiting IRQ0: bda.timerCount:", bda.timerCount)
-        case 0x03: print("Entering INT16")
-        case 0x04: print("Exiting INT16")
+        case 0x01: debugLog("Entering IRQ0: bda.timerCount:", bda.timerCount)
+        case 0x02: debugLog("Exiting IRQ0: bda.timerCount:", bda.timerCount)
+        case 0x03: debugLog("Entering INT16")
+        case 0x04: debugLog("Exiting INT16")
         default: fatalError("Unhandled DEBUG call \(String(ax, radix: 16))")
     }
 }
@@ -60,7 +60,7 @@ private func systemServices(_ ax: UInt16, _ vm: VirtualMachine) {
     let function = UInt8(ax >> 8)
     let vcpu = vm.vcpus[0]
     showRegisters(vcpu)
-    print("SYSTEM: function = 0x\(String(function, radix: 16)) not implemented")
+    debugLog("SYSTEM: function = 0x\(String(function, radix: 16)) not implemented")
     vcpu.registers.rflags.carry = true
 }
 

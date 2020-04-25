@@ -1,0 +1,20 @@
+module CInternal [system] {
+    umbrella header "CInternal.h"
+    export *
+}
+
+
+module LinuxCurses [system]
+{
+    requires linux
+    link "ncursesw"
+    export *
+}
+
+
+module DarwinCurses [system]
+{
+    requires macos
+    link "ncurses"
+    export *
+}

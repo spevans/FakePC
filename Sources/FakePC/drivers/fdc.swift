@@ -74,7 +74,7 @@ final class FDC: ISAIOHardware {
         }
 
         if status != .ok {
-            print("FDC: command \(function) from drive \(drive) error: \(status)")
+            debugLog("FDC: command \(function) from drive \(drive) error: \(status)")
         }
 
         vcpu.registers.ah = status.rawValue

@@ -5,6 +5,24 @@ private var ram: MemoryRegion?
 private var hma: MemoryRegion?
 
 
+func debugLog(_ arguments: Any..., separator: String = " ") {
+    var entry = ""
+
+    var sep = ""
+    for arg in arguments {
+        entry += "\(arg)"
+        entry += sep
+        sep = separator
+    }
+
+    if let console = ISA.console {
+        console.debugLog(entry)
+    } else {
+        print(entry)
+    }
+}
+
+
 func hexNum<T: BinaryInteger>(_ value: T, width: Int) -> String {
     let num = String(value, radix: 16)
     if num.count <= width {
@@ -15,18 +33,21 @@ func hexNum<T: BinaryInteger>(_ value: T, width: Int) -> String {
 
 
 func showRegisters(_ vcpu: VirtualMachine.VCPU) {
+    var registers = ""
+
     func showReg(_ name: String, _ value: UInt16) {
         let w = hexNum(value, width: 4)
-        print("\(name): \(w)", terminator: " ")
+        registers += "\(name): \(w) "
     }
 
-    showReg("\nCS", vcpu.registers.cs.selector)
+    showReg("CS", vcpu.registers.cs.selector)
     showReg("SS", vcpu.registers.ss.selector)
     showReg("DS", vcpu.registers.ds.selector)
     showReg("ES", vcpu.registers.es.selector)
     showReg("FS", vcpu.registers.fs.selector)
     showReg("GS", vcpu.registers.gs.selector)
-    print("FLAGS", vcpu.registers.rflags)
+    debugLog(registers)
+    registers = "FLAGS \(vcpu.registers.rflags)"
     showReg("IP", vcpu.registers.ip)
     showReg("AX", vcpu.registers.ax)
     showReg("BX", vcpu.registers.bx)
@@ -36,7 +57,7 @@ func showRegisters(_ vcpu: VirtualMachine.VCPU) {
     showReg("SI", vcpu.registers.si)
     showReg("BP", vcpu.registers.bp)
     showReg("SP", vcpu.registers.sp)
-    print("")
+    debugLog(registers)
 }
 
 
@@ -46,16 +67,18 @@ func dumpMemory(_ memory: MemoryRegion, offset: Int, count: Int) {
     let buffer = UnsafeRawBufferPointer(start: ptr, count: count)
 
     var idx = 0
-    print("\(hexNum(offset + idx, width: 5)): ", terminator: "")
+    var output = "\(hexNum(offset + idx, width: 5)): "
     for byte in buffer {
-        print(hexNum(byte, width: 2), terminator: " ")
+        output += hexNum(byte, width: 2)
+        output += " "
         idx += 1
         if idx == count { break }
         if idx.isMultiple(of: 16) {
-            print("\n\(hexNum(offset + idx, width: 5)): ", terminator: "")
+            debugLog(output)
+            output = "\(hexNum(offset + idx, width: 5)): "
         }
     }
-    print("\n")
+    debugLog(output)
 }
 
 
@@ -72,8 +95,8 @@ func processVMExit(_ vcpu: VirtualMachine.VCPU, _ vmExit: VMExit) throws -> Bool
                     try biosCall(vm: vcpu.vm, subSystem: port, function: value)
                     break
                 } else {
-                    print("Port: \(String(port, radix: 16)) IP: \(String(ip, radix: 16))")
-                    print("Not a bios call")
+                    debugLog("Port: \(String(port, radix: 16)) IP: \(String(ip, radix: 16))")
+                    debugLog("Not a bios call")
                 }
 
             }
@@ -81,7 +104,7 @@ func processVMExit(_ vcpu: VirtualMachine.VCPU, _ vmExit: VMExit) throws -> Bool
 
         case .ioInOperation(let port, let dataRead):
             let data = ISA.ioIn(port: port, dataRead: dataRead)
-            print("ioIn(0x\(String(port, radix: 16)), \(dataRead) => \(data))")
+            debugLog("ioIn(0x\(String(port, radix: 16)), \(dataRead) => \(data))")
             vcpu.setIn(data: data)
 
         case .memoryViolation:
@@ -101,13 +124,13 @@ func processVMExit(_ vcpu: VirtualMachine.VCPU, _ vmExit: VMExit) throws -> Bool
             fatalError("\(vmExit): \(debug)")
 
         case .hlt:
-            print("HLT... exiting")
+            debugLog("HLT... exiting")
             showRegisters(vcpu)
             return true
 
 
         default:
-            print(vmExit)
+            debugLog(vmExit)
             showRegisters(vcpu)
             fatalError("Unhandled exit: \(vmExit)")
     }
@@ -126,9 +149,9 @@ func runVM(vm: VirtualMachine) throws {
 
     group.enter()
     vcpu.start()
-    print("Waiting for VCPU to finish")
+    debugLog("Waiting for VCPU to finish")
     group.wait()
-    print("VCPU has finished")
+    debugLog("VCPU has finished")
 
 }
 
@@ -179,7 +202,18 @@ func setupVM() throws -> VirtualMachine {
 
 
 func main() {
-    startup()
+    var textMode = false
+    for argument in CommandLine.arguments {
+        if argument == "--text" {
+            textMode = true
+            print("Enabling text mode")
+        }
+    }
+    if textMode {
+        curses_startup()
+    } else {
+        startup()
+    }
 }
 
 

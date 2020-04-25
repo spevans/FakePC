@@ -21,7 +21,7 @@ class FakePCApplication: NSApplication {
 class FakePCAppController: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
-        let console = Console()
+        let console = CocoaConsole()
         ISA.setConsole(console)
 
         runVMThread()

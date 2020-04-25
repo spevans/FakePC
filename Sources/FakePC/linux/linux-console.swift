@@ -10,9 +10,9 @@
 
 #if os(Linux)
 
-// Dummy interface for Linux (for now).
+// Dummy interface for Linux (for now). Will probably use SDL for the screen eventually.
 
-class Console {
+class SDLConsole: Console {
     let keyboard: PS2Device? = nil
     let mouse: PS2Device? = nil
 
@@ -31,7 +31,7 @@ class Console {
     }
 
 
-    func rasteriseTextMemory(screenMode: ScreenMode, font: Font, newCharacter: (Int, Int) -> (UInt8, UInt8)?) {
+    func rasteriseTextMemory(screenMode: ScreenMode, font: Font, newCharacter: (Int, Int) -> (character: UInt8, attribute: UInt8)?) {
     }
 }
 

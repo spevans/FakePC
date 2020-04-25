@@ -63,7 +63,7 @@ final class HDC: ISAIOHardware {
         }
 
         if status != .ok {
-            print("HDC: command \(function) from drive \(drive) error: \(status)")
+            debugLog("HDC: command \(function) from drive \(drive) error: \(status)")
         }
 
         vcpu.registers.ah = status.rawValue

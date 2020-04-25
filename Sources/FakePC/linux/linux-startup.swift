@@ -12,7 +12,7 @@
 
 
 func startup() {
-    let console = Console()
+    let console = SDLConsole()
     ISA.setConsole(console)
 
     runVMThread()

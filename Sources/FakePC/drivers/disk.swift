@@ -36,10 +36,10 @@ final class Disk {
 
 
     init?(imageName: String, readOnly: Bool = true) {
-        print("imageName:", imageName)
+        debugLog("imageName:", imageName)
         imageURL = URL(fileURLWithPath: imageName, isDirectory: false)
         guard let data = try? Data(contentsOf: imageURL) else {
-            print("Cant load")
+            debugLog("Cant load")
             return nil
         }
         self.data = data
@@ -48,7 +48,7 @@ final class Disk {
         sectorsPerTrack = 9
         let totalSize = heads * tracksPerHead * sectorsPerTrack * sectorSize
         guard totalSize == data.count else {
-            print("Image size != floppy size")
+            debugLog("Image size != floppy size")
             return nil
         }
         isReadOnly = !FileManager.default.isWritableFile(atPath: imageName)
@@ -67,12 +67,10 @@ final class Disk {
         let head = Int(dh)    // DH = head
         let sector = Int(cx) & 0x3f
         let track = Int(cx) >> 8 | (Int(cx & 0xc0) << 10)
-        // print("logicalSector: head: \(head) track: \(track) sector: \(sector)")
         guard sector > 0 && sector <= sectorsPerTrack && track < tracksPerHead && head < heads else {
             return nil
         }
         let logical = (sector - 1) + (head * sectorsPerTrack) + (track * sectorsPerTrack * heads)
-        // print("logical: \(logical)")
         return logical
     }
 
@@ -105,7 +103,6 @@ final class Disk {
             return .failure(.invalidNumberOfSectors)
         }
         let offset = Int(vcpu.registers.es.base) + bx
-        //print("Copying \(size) bytes to 0x\(String(offset, radix: 16))")
         let operation = SectorOperation(startSector: startSector, sectorCount: sectorCount, bufferOffset: offset, bufferSize: size)
         return .success(operation)
     }

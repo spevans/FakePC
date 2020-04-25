@@ -417,7 +417,7 @@ final class I8042: ISAIOHardware {
                 buffer.append(data)
                 result = true
             } else {
-                print("Buffer full!")
+                debugLog("i8042: Buffer full!")
             }
             lock.unlock()
             semaphore.signal()
@@ -449,7 +449,6 @@ final class I8042: ISAIOHardware {
 
     // This is effectively the IRQ1 (INT9) keyboard handler running each time a scancode is sent from the keyboard.
     func addScanCode(_ code: UInt8) {
-        //print("addScanCode: \(String(code, radix: 16))")
         if code == 0xF0 {
             isBreak = true
         } else if code == 0xE0 {
@@ -524,7 +523,6 @@ final class I8042: ISAIOHardware {
                         let control = bda.keyboardStatusFlags1Flags.controlKeyDown
                         let alt = bda.keyboardStatusFlags1Flags.altKeyDown
 
-                        //print("isE0: \(isE0)  shift: \(shift)  control: \(control)  alt: \(alt)")
                         let scanCode: UInt16?
                         switch (isE0, shift, control, alt) {
                             case (false, false, false, false):  scanCode = unshiftedMap[code]
@@ -539,7 +537,6 @@ final class I8042: ISAIOHardware {
                         }
 
                         if let scanCode = scanCode {
-                            //print("adding scanCode: \(String(scanCode, radix: 16))")
                             keyboardBuffer.addData(scanCode)
                         }
                 }
@@ -600,7 +597,7 @@ extension I8042 {
                 vcpu.registers.rflags.zero = false
 
             default:
-                print("KEYBOARD: \(keyboardFunction) not implemented")
+                debugLog("KEYBOARD: \(keyboardFunction) not implemented")
                 vcpu.registers.rflags.zero = false
                 vcpu.registers.rflags.carry = true
         }

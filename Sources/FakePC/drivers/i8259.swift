@@ -199,22 +199,20 @@ final class PIC: ISAIOHardware {
         precondition(irq >= 0 && irq <= 7)
         let irqBit = UInt8(1 << irq)
         guard (irqBit & interruptMaskRegister) == 0 else {
-            print("IRQ: \(irq) is masked")
+            debugLog("IRQ: \(irq) is masked")
             // IRQ masked - do nothing
             return
         }
-//        print("Setting irqBit: \(irqBit) for irq: \(irq)")
         interruptRequestRegister |= irqBit
         // if this is the
 
         if let lbs = inServiceRegister.lowestBitSet, irq <= lbs {
-//            print("current interrupt in service: \(lbs), inServiceRegister=\(inServiceRegister)")
+            debugLog("current interrupt in service: \(lbs), inServiceRegister=\(inServiceRegister)")
             // There is an IRQ in service at the moment and it is a higher
             // priority than the request irq, so return for now
             return
         }
         inServiceRegister.set(bit: irq)
-//        print("Queuing irq:", UInt8(irq) + vectorAddressBase)
         vcpu.queue(irq: UInt8(irq) + vectorAddressBase)
     }
 
@@ -224,7 +222,6 @@ final class PIC: ISAIOHardware {
         if let nextIrq = (interruptRequestRegister & ~interruptMaskRegister).lowestBitSet {
             interruptRequestRegister.clearLowestBitSet()
             inServiceRegister.set(bit: nextIrq)
-//            print("PIC: Signalling next IRQ: \(nextIrq)")
             vcpu.queue(irq: UInt8(nextIrq) + vectorAddressBase)
         }
     }
@@ -233,8 +230,6 @@ final class PIC: ISAIOHardware {
     // Process bytes sent to PIC (using OUT instruction). a0 is true if
     // IO port is 0x21 or 0xA1, false if port is 0x20, 0xA0
     func writeByte(_ byte: UInt8, a0: Bool) throws {
-
-//        print("PIC write: a0: \(a0) byte: \(String(byte, radix: 16)), state: \(state)")
 
         let d4 = byte & 0x10 == 0x10
 
@@ -259,7 +254,6 @@ final class PIC: ISAIOHardware {
                 if a0 {
                     let icw2 = ICW2(value: byte)
                     vectorAddressBase = icw2.irqBase
-//                    print("vectorAddressBase:", vectorAddressBase)
                     if icw1.isCascade {
                         state = .waitingForICW3
                     } else if icw1.isIcw4Needed {
@@ -306,7 +300,7 @@ final class PIC: ISAIOHardware {
                             case .rotateOnNonSpecificEOI: fallthrough
                             case .setPriorityCommand: fallthrough
                             case .rotateOnSpecificEOI:
-                                print("PIC: Ignoring command: \(ocw2.command)")
+                                debugLog("PIC: Ignoring command: \(ocw2.command)")
 
                             case .noOperation: break
                         }
@@ -319,7 +313,6 @@ final class PIC: ISAIOHardware {
 
             default: break
         }
-//        print("PIC: write finished, state: \(state)")
     }
 
 
