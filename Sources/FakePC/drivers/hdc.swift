@@ -40,7 +40,7 @@ final class HDC: ISAIOHardware {
         if diskFunction == .getDiskType {
             if let disk = disks[drive] {
                 vcpu.registers.ah = 3   // Hard Drive
-                let sectors = disk.totalSectors
+                let sectors = disk.geometry.totalSectors
                 vcpu.registers.cx = UInt16(sectors >> 16)
                 vcpu.registers.dx = UInt16(truncatingIfNeeded: sectors)
             } else {
@@ -92,7 +92,7 @@ final class HDC: ISAIOHardware {
                     case .success(let operation):
                         let ptr = vm.memoryRegions[0].rawBuffer.baseAddress!.advanced(by: operation.bufferOffset)
                         let buffer = UnsafeMutableRawBufferPointer(start: ptr, count: operation.bufferSize)
-                        status = disk.readSectors(into: buffer, fromSector: operation.startSector, count: operation.sectorCount)
+                        status = operation.readSectors(into: buffer)
                 }
 
             case .writeSectors:
@@ -107,7 +107,7 @@ final class HDC: ISAIOHardware {
                         case .success(let operation):
                             let ptr = vm.memoryRegions[0].rawBuffer.baseAddress!.advanced(by: operation.bufferOffset)
                             let buffer = UnsafeRawBufferPointer(start: ptr, count: operation.bufferSize)
-                            status = disk.writeSectors(from: buffer, toSector: operation.startSector, count: operation.sectorCount)
+                            status = operation.writeSectors(from: buffer)
                     }
                 }
 
@@ -119,7 +119,7 @@ final class HDC: ISAIOHardware {
                     case .success(let operation):
                         let ptr = vm.memoryRegions[0].rawBuffer.baseAddress!.advanced(by: operation.bufferOffset)
                         let buffer = UnsafeRawBufferPointer(start: ptr, count: operation.bufferSize)
-                        status = disk.verifySectors(in: buffer, toSector: operation.startSector, count: operation.sectorCount)
+                        status = operation.verifySectors(using: buffer)
                 }
 
             case .formatTrack:
@@ -134,10 +134,10 @@ final class HDC: ISAIOHardware {
             case .readDriveParameters:
                 showRegisters(vcpu)
                 vcpu.registers.bl = 04
-                let cylinders = disk.tracksPerHead
+                let cylinders = disk.geometry.tracksPerHead
                 vcpu.registers.ch = UInt8(cylinders & 0xff)
-                vcpu.registers.cl = UInt8(disk.sectorsPerTrack & 0x3f) | (UInt8(cylinders >> 6) & 0xc0)
-                vcpu.registers.dh = UInt8(disk.heads - 1)
+                vcpu.registers.cl = UInt8(disk.geometry.sectorsPerTrack & 0x3f) | (UInt8(cylinders >> 6) & 0xc0)
+                vcpu.registers.dh = UInt8(disk.geometry.heads - 1)
                 vcpu.registers.dl = UInt8(disks.filter { $0 != nil }.count)
                 status = .ok
 
@@ -151,7 +151,7 @@ final class HDC: ISAIOHardware {
                 status = .invalidCommand
 
             case .seekToCylinder:
-                let (track, _) = disk.trackAndSectorFrom(cx: vcpu.registers.cx)
+                let (track, _) = Disk.trackAndSectorFrom(cx: vcpu.registers.cx)
                 status = disk.setCurrentTrack(track)
 
             case .alternateDiskReset:

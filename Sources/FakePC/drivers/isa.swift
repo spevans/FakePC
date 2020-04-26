@@ -88,7 +88,7 @@ struct ISA {
 
         video = try Video(vm: vm, display: console)
         try registerIOPort(ports: 0x3B0...0x3DF, video!)
-
+#if false
 #if os(Linux)
         let image = "/home/spse/src/osx/FakePC/pc-dos.img"
 #else
@@ -98,8 +98,10 @@ struct ISA {
         guard let disk = Disk(imageName: image) else {
             fatalError("Cant load floppy image")
         }
-
-        let fdc = FDC(disk1: disk)
+#endif
+        let fdc = FDC()
+        try! fdc.insert(diskPath: "/Users/spse/Files/src/osx/FakePC/pc-dos.img", intoDrive: 0)
+        try! fdc.insert(diskPath: "/Users/spse/Files/src/osx/FakePC/blank_floppy.img", intoDrive: 1)
         floppyDriveControllers.append(fdc)
     }
 
