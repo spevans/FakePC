@@ -321,4 +321,8 @@ func setupBDA(_ vm: VirtualMachine) throws {
     bda.keyboardBufferTail = 0x1E
     bda.keyboardBufferStartAddress = 0x1E
     bda.keyboardBufferEndAddress = 0x3C
+
+    if let rtc = ISA.rtc {
+        bda.timerCount = (rtc.secondsSinceMidnight() * 182) / 10
+    }
 }

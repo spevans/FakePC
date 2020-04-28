@@ -26,7 +26,7 @@ func biosCall(vm: VirtualMachine, subSystem: IOPort, function: UInt16) throws {
         case 0xE3: systemServices(function, vm)
         case 0xE4: if let keyboardController = ISA.i8042 { keyboardController.biosCall(function, vm) }
         case 0xE5: if let printer = ISA.printerPort(Int(vcpu.registers.dx)) { printer.biosCall(function, vm) }
-        case 0xE6: break //try setupBDA(vm) // setup BIOS Data Area
+        case 0xE6: try setupBDA(vm) // setup BIOS Data Area
         case 0xE8: if let rtc = ISA.rtc { rtc.biosCall(function, vm) }
         case 0xEF: debug(function, vm)
         default: fatalError("Unhandled BIOS call (0x\(String(subSystem, radix: 16)),0x\(String(function, radix: 16)))")
@@ -49,6 +49,8 @@ private func debug(_ ax: UInt16, _ vm: VirtualMachine) {
         case 0x02: debugLog("Exiting IRQ0: bda.timerCount:", bda.timerCount)
         case 0x03: debugLog("Entering INT16")
         case 0x04: debugLog("Exiting INT16")
+        case 0x05: debugLog("Calling INT19")
+        case 0x06: debugLog("In INT19")
         default: fatalError("Unhandled DEBUG call \(String(ax, radix: 16))")
     }
 }

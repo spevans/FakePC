@@ -70,12 +70,15 @@ final class Disk {
     let imageURL: URL
     let fileHandle: FileHandle
     let geometry: Geometry
-    var sectorSize: Int { geometry.sectorSize }
-    var data: Data
     let isReadOnly: Bool
+    let isFloppyDisk: Bool
 
+    private var data: Data
     private(set) var lastStatus: Status = .ok
     private var currentTrack = 0
+
+    var sectorSize: Int { geometry.sectorSize }
+    var isHardDisk: Bool { !isFloppyDisk }
 
 
     static func fileSizeInBytes(for path: String) -> UInt64? {
@@ -86,9 +89,11 @@ final class Disk {
     }
 
 
-    init?(imageName: String, geometry: Geometry? = nil, readOnly: Bool = false) {
+    init?(imageName: String, geometry: Geometry? = nil, floppyDisk: Bool, readOnly: Bool = false) {
         imageURL = URL(fileURLWithPath: imageName, isDirectory: false)
         isReadOnly = readOnly || !FileManager.default.isWritableFile(atPath: imageName)
+        isFloppyDisk = floppyDisk
+
         do {
             if isReadOnly {
                 try fileHandle = FileHandle(forReadingFrom: imageURL)

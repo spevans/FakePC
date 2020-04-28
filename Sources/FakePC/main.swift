@@ -139,80 +139,61 @@ func processVMExit(_ vcpu: VirtualMachine.VCPU, _ vmExit: VMExit) throws -> Bool
 }
 
 
-func runVM(vm: VirtualMachine) throws {
-    let group = DispatchGroup()
-    let vcpu = try vm.createVCPU(startup: { $0.setupRealMode() },
-                                 vmExitHandler: processVMExit,
-                                 completionHandler: { group.leave() })
-
-    try ISA.registerHardware(vm: vm)
-
-    group.enter()
-    vcpu.start()
-    debugLog("Waiting for VCPU to finish")
-    group.wait()
-    debugLog("VCPU has finished")
-
-}
 
 private var vmThread: Thread!
-func runVMThread() {
-    let vm: VirtualMachine
-
-    do {
-        vm = try setupVM()
-    }  catch {
-        fatalError("Error: \(error)")
-    }
+func runVMThreadWith(config: MachineConfig) {
 
     vmThread = Thread {
+        let vm: VirtualMachine
+
         do {
-            try runVM(vm: vm)
-        } catch {
-            NSLog("vmThread: \(error)")
+            vm = try setupVMWith(config: config)
+        }  catch {
+            fatalError("Error: \(error)")
         }
+
+        let group = DispatchGroup()
+        group.enter()
+        let vcpu = vm.vcpus[0]
+        vcpu.completionHandler = {
+            group.leave()
+        }
+        vcpu.start()
+        debugLog("Waiting for VCPU to finish")
+        group.wait()
+        debugLog("VCPU has finished")
     }
     vmThread.start()
 }
 
 
-func setupVM() throws -> VirtualMachine {
+func setupVMWith(config: MachineConfig) throws -> VirtualMachine {
     let vm = try VirtualMachine()
+    try vm.createVCPU(startup: { $0.setupRealMode() }, vmExitHandler: processVMExit)
 
     // Currently only KVM will emulate an PIC and PIT, HVF will not. The PIC/PIT code needs to be added into
     // HypervisorKit then it can be enabled there for HVF and the KVM one used on Linux.
     // try vm.addPICandPIT()
 
-    ram = try vm.addMemory(at: 0, size: 0xA0000) // 640K RAM everything above is Video RAM and ROM
-    hma = try vm.addMemory(at: 0x100000, size: 0x10000) // HMA 64KB ram at 1MB mark
+    ram = try vm.addMemory(at: 0, size: 0xA0_000) // 640K RAM everything above is Video RAM and ROM
+    hma = try vm.addMemory(at: 0x100_000, size: 0x10_000) // HMA 64KB ram at 1MB mark
     // Top 4K
     let biosRegion = try vm.addMemory(at: 0xFF000, size: 4096)
-
-#if os(Linux)
-    let biosURL = URL(fileURLWithPath: "/home/spse/src/osx/FakePC/bios.bin", isDirectory: false)
-#else
-    let biosURL = URL(fileURLWithPath: "/Users/spse/Files/src/osx/FakePC/bios.bin", isDirectory: false)
-#endif
-    let biosImage = try Data(contentsOf: biosURL)
-
+    let biosImage = try Data(contentsOf: config.biosURL)
     try biosRegion.loadBinary(from: biosImage, atOffset: 0x0)
-    try setupBDA(vm)
+    try ISA.registerHardware(config: config, vm: vm)
     return vm
 }
 
 
 func main() {
-    var textMode = false
-    for argument in CommandLine.arguments {
-        if argument == "--text" {
-            textMode = true
-            print("Enabling text mode")
-        }
-    }
-    if textMode {
-        curses_startup()
+    let config = MachineConfig(CommandLine.arguments.dropFirst(1))
+    debugLog("Config:", config)
+
+    if config.textMode {
+        cursesStartupWith(config: config)
     } else {
-        startup()
+        startupWith(config: config)
     }
 }
 

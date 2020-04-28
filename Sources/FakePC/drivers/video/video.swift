@@ -57,7 +57,6 @@ class Video: ISAIOHardware {
         font = Font(width: 8, height: 16, data: font_vga_8x16.data)
         self.display = display
         self.display.updateHandler = { self.updateDisplay() }
-        setVideo(mode: 7)
     }
 
 

@@ -13,6 +13,36 @@ import HypervisorKit
 
 final class HDC: ISAIOHardware {
 
+    static func parseCommandLineArguments(_ parameters: String) -> Disk? {
+        var tracks: Int?
+        var heads: Int?
+        var sectors: Int?
+        var imageFile: String?
+        var readOnly = false
+
+        for part in parameters.split(separator: ",") {
+            if part == "ro" {
+                readOnly = true
+                continue
+            }
+            let option = String(part).split(separator: ":", maxSplits: 1, omittingEmptySubsequences: true)
+            guard option.count == 2 else { fatalError("Invalid option: \(parameters)") }
+            switch option[0] {
+                case "t": if let t = Int(option[1]) { tracks = t }  else { fatalError("Invalid tracks: \(option[1])") }
+                case "h": if let h = Int(option[1]) { heads = h  }  else { fatalError("Invalid heads: \(option[1])") }
+                case "s": if let s = Int(option[1]) { sectors = s } else { fatalError("Invalid sectors: \(option[1])") }
+                case "img": imageFile = String(option[1])
+                default: fatalError("Invalid disk option \(option[0])")
+            }
+        }
+        if let tracks = tracks, let sectors = sectors, let heads = heads, let imageFile = imageFile {
+            let geometry = Disk.Geometry(sectorsPerTrack: sectors, tracksPerHead: tracks, heads: heads)
+            return Disk(imageName: imageFile, geometry: geometry, floppyDisk: false, readOnly: readOnly)
+        } else {
+            fatalError("Disk specifiction \(parameters) is missing track, sector head or imageFile")
+        }
+    }
+
     private let disks: [Disk?]
     private var lastStatus: [Disk.Status] = [.ok, .ok]
 

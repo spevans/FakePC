@@ -11,7 +11,7 @@
 #if os(Linux)
 
 
-func startup() {
+func startupWith(config: MachineConfig) {
     let console = SDLConsole()
     ISA.setConsole(console)
 

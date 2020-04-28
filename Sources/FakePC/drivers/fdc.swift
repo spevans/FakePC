@@ -64,6 +64,11 @@ final class FDC: ISAIOHardware {
     private var lastStatus: [Disk.Status] = [.ok, .ok]
 
 
+    static func parseCommandLineArguments(_ argument: String) -> Disk? {
+        return diskForImage(path: argument)
+    }
+
+
     private static func diskForImage(path: String) -> Disk {
         guard let size = Disk.fileSizeInBytes(for: path) else {
             fatalError("Cant read disk size for \(path)")
@@ -71,7 +76,7 @@ final class FDC: ISAIOHardware {
 
         for geometry in floppyGeometries {
             if size == UInt64(geometry.capacity) {
-                if let disk = Disk(imageName: path, geometry: geometry) {
+                if let disk = Disk(imageName: path, geometry: geometry, floppyDisk: true) {
                     return disk
                 }
             }
@@ -86,6 +91,18 @@ final class FDC: ISAIOHardware {
         }
         if let disk2Path = disk2Path {
             try! self.insert(diskPath: disk2Path, intoDrive: 1)
+        }
+    }
+
+    init(disk1: Disk? = nil, disk2: Disk? = nil) {
+        if let disk1 = disk1 {
+            guard disk1.isFloppyDisk else { fatalError("Not a floppy disk") }
+            disks[0] = disk1
+        }
+
+        if let disk2 = disk2 {
+            guard disk2.isFloppyDisk else { fatalError("Not a floppy disk") }
+            disks[1] = disk2
         }
     }
 

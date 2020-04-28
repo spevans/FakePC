@@ -20,10 +20,10 @@ import DarwinCurses
 import CInternal
 import Foundation
 
-func curses_startup() {
+func cursesStartupWith(config: MachineConfig) {
     let console = CursesConsole()
     ISA.setConsole(console)
-    runVMThread()
+    runVMThreadWith(config: config)
     let kb = console.keyboard as! CursesKeyboard
     kb.keyboardLoop()
 }

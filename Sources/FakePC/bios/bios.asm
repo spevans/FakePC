@@ -60,6 +60,10 @@ set_vector_end:
                 mov     ax, 1
                 out     0xe6, ax
 
+                ;; set Video Mode 7 (MDA 80x25) ;; TODO determine why it fails if this is moved to after setup_pit
+                mov     al, 7
+                int     0x10
+
                 call    setup_pic
                 call    setup_pit
                 sti

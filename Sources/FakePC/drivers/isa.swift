@@ -65,7 +65,7 @@ struct ISA {
     static private var ioPortHandlers: [IOPort:ISAIOHardware] = [:]
 
 
-    static func registerHardware(vm: VirtualMachine) throws {
+    static func registerHardware(config: MachineConfig, vm: VirtualMachine) throws {
 
         let vcpu = vm.vcpus.first!
         // ISA bus has a fixed set of hardware at known locations so they
@@ -88,20 +88,8 @@ struct ISA {
 
         video = try Video(vm: vm, display: console)
         try registerIOPort(ports: 0x3B0...0x3DF, video!)
-#if false
-#if os(Linux)
-        let image = "/home/spse/src/osx/FakePC/pc-dos.img"
-#else
-        let image = "/Users/spse/Files/src/osx/FakePC/pc-dos.img"
-#endif
 
-        guard let disk = Disk(imageName: image) else {
-            fatalError("Cant load floppy image")
-        }
-#endif
-        let fdc = FDC()
-        try! fdc.insert(diskPath: "/Users/spse/Files/src/osx/FakePC/pc-dos.img", intoDrive: 0)
-        try! fdc.insert(diskPath: "/Users/spse/Files/src/osx/FakePC/blank_floppy.img", intoDrive: 1)
+        let fdc = FDC(disk1: config.fd0, disk2: config.fd1)
         floppyDriveControllers.append(fdc)
     }
 

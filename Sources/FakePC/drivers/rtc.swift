@@ -190,8 +190,6 @@ final class RTC: ISAIOHardware {
         staticRam[0x10] = 0x55 // Two floppy drives both 3.5" 2.88MB
 
         timer = DispatchSource.makeTimerSource(queue: queue)
-        var bda = BDA()
-        bda.timerCount = UInt32((secondsSinceMidnight() * 182) / 10)
 
         timer.setEventHandler {
             self.staticRam.updateRTC()
@@ -203,8 +201,8 @@ final class RTC: ISAIOHardware {
 
 
     // Used to set the seconds counter incremented by the timer on IRQ0
-    func secondsSinceMidnight() -> Int {
-        let seconds = (Int(staticRam.rtcHour) * 3600) + (Int(staticRam.rtcMinute) * 60) + Int(staticRam.rtcSecond)
+    func secondsSinceMidnight() -> UInt32 {
+        let seconds = (UInt32(staticRam.rtcHour) * 3600) + (UInt32(staticRam.rtcMinute) * 60) + UInt32(staticRam.rtcSecond)
         return seconds
     }
 
