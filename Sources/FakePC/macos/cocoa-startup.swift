@@ -20,20 +20,17 @@ class FakePCApplication: NSApplication {
 
 class FakePCAppController: NSObject, NSApplicationDelegate {
 
-    private let config: MachineConfig
+    private let fakePC: FakePC
 
 
-    init(config: MachineConfig) {
-        self.config = config
+    init(fakePC: FakePC) {
+        self.fakePC = fakePC
         super.init()
     }
 
 
     func applicationDidFinishLaunching(_ aNotification: Notification) {
-        let console = CocoaConsole()
-        ISA.setConsole(console)
-
-        runVMThreadWith(config: config)
+        fakePC.runVMThread()
     }
 
 
@@ -43,12 +40,12 @@ class FakePCAppController: NSObject, NSApplicationDelegate {
 }
 
 
-func startupWith(config: MachineConfig) {
+func startupWith(_ fakePC: FakePC) {
     autoreleasepool {
         var psn = ProcessSerialNumber( highLongOfPSN: 0, lowLongOfPSN: UInt32(kCurrentProcess))
         TransformProcessType(&psn, UInt32(kProcessTransformToForegroundApplication))
         _ = FakePCApplication.shared
-        let fakePCAppController = FakePCAppController(config: config)
+        let fakePCAppController = FakePCAppController(fakePC: fakePC)
         NSApp.delegate = fakePCAppController
         NSApp.run()
     }

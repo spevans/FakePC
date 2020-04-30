@@ -5,16 +5,10 @@
 //  Created by Simon Evans on 12/04/2020.
 //  Copyright © 2020 Simon Evans. All rights reserved.
 //
-//  ISA Hardware setup and IO port command interface.
+//  ISA Hardware setup.
 //
 
 import HypervisorKit
-
-
-enum ISAError: Error {
-    case IOPortInUse
-    case IRQInUse
-}
 
 
 protocol ISAIOHardware {
@@ -43,58 +37,82 @@ extension ISAIOHardware {
 }
 
 
-struct ISA {
+final class ISA {
 
-    // There is only one ISA bus so everything here is static as this
-    // represents a singleton.
+    // The VPIC consist of the primary and secondary i8259 PICs to make it easier
+    // for ISA devices to send an IRQ 0-15 and have it routed to the correct PIC.
+    struct VPIC {
+        let pic1: PIC
+        let pic2: PIC
 
-    static private(set) var console: Console!
-    static private var pic1: PIC?
-    static private var pic2: PIC?
-    static private var pit: PIT?
-    static private(set) var i8042: I8042?
-    static private(set) var rtc: RTC?
-    static private(set) var video: Video?
-    static private var floppyDriveControllers: [FDC] = []
-    static private var hardDriveControllers: [HDC] = []
-    static private var serialPorts: [Serial] = []
-    static private var printerPorts: [Printer] = []
-
-    // Drivers can register ownership of IO ports to handle IN,OUT
-    // instructions.
-    static private var ioPortHandlers: [IOPort:ISAIOHardware] = [:]
-
-
-    static func registerHardware(config: MachineConfig, vm: VirtualMachine) throws {
-
-        let vcpu = vm.vcpus.first!
-        // ISA bus has a fixed set of hardware at known locations so they
-        // are hardcoded here.
-        pic1 = PIC(vcpu: vcpu, master: nil)
-        try registerIOPort(ports: 0x20...0x21, pic1!)
-
-        pic2 = PIC(vcpu: vcpu, master: pic1!)
-        try registerIOPort(ports: 0xA0...0xA1, pic2!)
-
-        pit = PIT()
-        try registerIOPort(ports: 0x40...0x43, pit!)
-
-        i8042 = I8042(keyboard: console.keyboard, mouse: console.mouse)
-        try registerIOPort(port: 0x60, i8042!)
-        try registerIOPort(port: 0x64, i8042!)
-
-        rtc = RTC()
-        try registerIOPort(ports: 0x70...0x71, rtc!)
-
-        video = try Video(vm: vm, display: console)
-        try registerIOPort(ports: 0x3B0...0x3DF, video!)
-
-        let fdc = FDC(disk1: config.fd0, disk2: config.fd1)
-        floppyDriveControllers.append(fdc)
+        func send(irq: Int) {
+            if irq < 8 {
+                pic1.send(irq: irq)
+            }
+            else if irq < 15 {
+                pic2.send(irq: irq - 8)
+            }
+            else {
+                debugLog("Invalid IRQ: \(irq)")
+            }
+        }
     }
 
 
-    static func diskDrive(_ drive: Int) -> ISAIOHardware? {
+    let resourceManager: ResourceManager
+    let console: Console
+    let vpic: VPIC
+    let pit: PIT
+    let keyboardController: I8042
+    let rtc: RTC
+    let video: Video
+    let floppyDriveControllers: [FDC]
+    let hardDriveControllers: [HDC]
+    let serialPorts: [Serial]
+    let printerPorts: [Printer]
+
+    private unowned let vm: VirtualMachine
+
+
+    init(config: MachineConfig, vm: VirtualMachine, rootResourceManager: ResourceManager) throws {
+        self.vm = vm
+        let vcpu = vm.vcpus.first!
+
+        resourceManager = try rootResourceManager.reserve(portRange: 0...0x3ff, irqRange: 0...15)
+        self.console = config.textMode ? CursesConsole() : CocoaConsole()
+
+        // ISA bus has a fixed set of hardware at known locations so they
+        // are hardcoded here.
+        let pic1 = PIC(vcpu: vcpu, master: nil)
+        try resourceManager.registerIOPort(ports: 0x20...0x21, pic1)
+
+        let pic2 = PIC(vcpu: vcpu, master: pic1)
+        try resourceManager.registerIOPort(ports: 0xA0...0xA1, pic2)
+        vpic = VPIC(pic1: pic1, pic2: pic2)
+
+        pit = PIT(vpic: vpic)
+        try resourceManager.registerIOPort(ports: 0x40...0x43, pit)
+
+        keyboardController = I8042(keyboard: console.keyboard, mouse: console.mouse)
+        try resourceManager.registerIOPort(ports: 0x60...0x60, keyboardController)
+        try resourceManager.registerIOPort(ports: 0x64...0x64, keyboardController)
+
+        rtc = RTC()
+        try resourceManager.registerIOPort(ports: 0x70...0x71, rtc)
+
+        video = try Video(vm: vm, display: console)
+        try resourceManager.registerIOPort(ports: 0x3B0...0x3DF, video)
+
+        let fdc = FDC(disk1: config.fd0, disk2: config.fd1)
+        floppyDriveControllers = [fdc]
+
+        hardDriveControllers = []
+        serialPorts = []
+        printerPorts = []
+    }
+
+
+    func diskDrive(_ drive: Int) -> ISAIOHardware? {
         // Each controller handles 2 drives
         if drive < 0x80 {
             let fdc = drive >> 1
@@ -111,73 +129,21 @@ struct ISA {
     }
 
 
-    static func serialPort(_ port: Int) -> Serial? {
+    func serialPort(_ port: Int) -> Serial? {
         guard port < serialPorts.count else { return nil }
         return serialPorts[port]
     }
 
 
-    static func printerPort(_ port: Int) -> Printer? {
+    func printerPort(_ port: Int) -> Printer? {
         guard port < printerPorts.count else { return nil }
         return printerPorts[port]
     }
 
 
-    static func registerIOPort(port: IOPort, _ hardware: ISAIOHardware) throws {
-        guard ioPortHandlers[port] == nil else { throw ISAError.IOPortInUse }
-        ioPortHandlers[port] = hardware
-    }
-
-
-    static func registerIOPort(ports: ClosedRange<IOPort>, _ hardware: ISAIOHardware) throws {
-        for port in ports {
-            guard ioPortHandlers[port] == nil else { throw ISAError.IOPortInUse }
-        }
-        for port in ports {
-            ioPortHandlers[port] = hardware
-        }
-    }
-
-
-    static func ioOut(port: IOPort, dataWrite: VMExit.DataWrite) throws {
-//        debugLog("IO-OUT: \(String(port, radix: 16)):", dataWrite)
-        if let hardware = ioPortHandlers[port] {
-            try hardware.ioOut(port: port, operation: dataWrite)
-        }
-    }
-
-
-    static func ioIn(port: IOPort, dataRead: VMExit.DataRead) -> VMExit.DataWrite {
-  //      debugLog("IO-IN: \(String(port, radix: 16)):", dataRead)
-        if let hardware = ioPortHandlers[port] {
-            return hardware.ioIn(port: port, operation: dataRead)
-        } else {
-            return VMExit.DataWrite(bitWidth: dataRead.bitWidth, value: 0)!
-        }
-    }
-
-
-    static func send(irq: Int) {
-        if irq < 8 {
-            pic1!.send(irq: irq)
-        }
-        else if irq < 15 {
-            pic2!.send(irq: irq - 8)
-        }
-        else {
-            debugLog("Invalid IRQ: \(irq)")
-        }
-    }
-
-
-    static func processHardware() {
-        pit!.process()
-        pic2!.process()
-        pic1!.process()
-    }
-
-
-    static func setConsole(_ console: Console) {
-        self.console = console
+    func processHardware() {
+        pit.process()
+        vpic.pic2.process()
+        vpic.pic1.process()
     }
 }

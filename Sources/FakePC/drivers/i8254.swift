@@ -19,10 +19,10 @@ final class PIT: ISAIOHardware {
     private var timerActivated = false
 
 
-    init() {
+    init(vpic: ISA.VPIC) {
         timer = DispatchSource.makeTimerSource(queue: queue)
         timer.setEventHandler {
-            ISA.send(irq: 0)
+            vpic.send(irq: 0)
         }
         // Setup the default 18.2 ticks/second timer, dont wait for programming
         timer.schedule(deadline: .now(), repeating: .milliseconds(55))

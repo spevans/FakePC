@@ -300,8 +300,8 @@ struct BDA {
 }
 
 
-func setupBDA(_ vm: VirtualMachine) throws {
-    BDA.ptr = try vm.memory(at: PhysicalAddress(RawAddress(0x400)), count: 256)
+func setupBDA(fakePC: FakePC) throws {
+    BDA.ptr = try fakePC.vm.memory(at: PhysicalAddress(RawAddress(0x400)), count: 256)
 
     var bda = BDA()
 
@@ -322,7 +322,5 @@ func setupBDA(_ vm: VirtualMachine) throws {
     bda.keyboardBufferStartAddress = 0x1E
     bda.keyboardBufferEndAddress = 0x3C
 
-    if let rtc = ISA.rtc {
-        bda.timerCount = (rtc.secondsSinceMidnight() * 182) / 10
-    }
+    bda.timerCount = (fakePC.isa.rtc.secondsSinceMidnight() * 182) / 10
 }

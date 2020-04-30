@@ -13,21 +13,23 @@ import HypervisorKit
 
 
 // The BIOS ROM can make calls using OUT port, AX where port is 0xE0 to 0xEF
-func biosCall(vm: VirtualMachine, subSystem: IOPort, function: UInt16) throws {
+func biosCall(fakePC: FakePC, subSystem: IOPort, function: UInt16) throws {
+    let vm = fakePC.vm
+    let isa = fakePC.isa
+    let vcpu = vm.vcpus[0]
 
     // Set default return error flag
-    let vcpu = vm.vcpus[0]
     vcpu.registers.rflags.carry = true
 
     switch subSystem {
-        case 0xE0: if let video = ISA.video { video.biosCall(function, vm) }
-        case 0xE1: if let drive = ISA.diskDrive(Int(vcpu.registers.dl)) { drive.biosCall(function, vm) }
-        case 0xE2: if let serial = ISA.serialPort(Int(vcpu.registers.dx)) { serial.biosCall(function, vm) }
+        case 0xE0: isa.video.biosCall(function, vm)
+        case 0xE1: if let drive = isa.diskDrive(Int(vcpu.registers.dl)) { drive.biosCall(function, vm) }
+        case 0xE2: if let serial = isa.serialPort(Int(vcpu.registers.dx)) { serial.biosCall(function, vm) }
         case 0xE3: systemServices(function, vm)
-        case 0xE4: if let keyboardController = ISA.i8042 { keyboardController.biosCall(function, vm) }
-        case 0xE5: if let printer = ISA.printerPort(Int(vcpu.registers.dx)) { printer.biosCall(function, vm) }
-        case 0xE6: try setupBDA(vm) // setup BIOS Data Area
-        case 0xE8: if let rtc = ISA.rtc { rtc.biosCall(function, vm) }
+        case 0xE4: isa.keyboardController.biosCall(function, vm)
+        case 0xE5: if let printer = isa.printerPort(Int(vcpu.registers.dx)) { printer.biosCall(function, vm) }
+        case 0xE6: try setupBDA(fakePC: fakePC) // setup BIOS Data Area
+        case 0xE8: isa.rtc.biosCall(function, vm)
         case 0xEF: debug(function, vm)
         default: fatalError("Unhandled BIOS call (0x\(String(subSystem, radix: 16)),0x\(String(function, radix: 16)))")
     }
