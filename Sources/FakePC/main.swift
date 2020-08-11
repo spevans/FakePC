@@ -62,26 +62,6 @@ func showRegisters(_ vcpu: VirtualMachine.VCPU) {
 }
 
 
-func dumpMemory(_ memory: MemoryRegion, offset: Int, count: Int) {
-    let ptr = memory.rawBuffer.baseAddress!.advanced(by: offset)
-    let buffer = UnsafeRawBufferPointer(start: ptr, count: count)
-
-    var idx = 0
-    var output = "\(hexNum(offset + idx, width: 5)): "
-    for byte in buffer {
-        output += hexNum(byte, width: 2)
-        output += " "
-        idx += 1
-        if idx == count { break }
-        if idx.isMultiple(of: 16) {
-            debugLog(output)
-            output = "\(hexNum(offset + idx, width: 5)): "
-        }
-    }
-    debugLog(output)
-}
-
-
 func main() {
     let config = MachineConfig(CommandLine.arguments.dropFirst(1))
     debugLog("Config:", config)

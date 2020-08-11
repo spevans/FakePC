@@ -96,7 +96,7 @@ final class FakePC {
         case .exception(let exceptionInfo):
             showRegisters(vcpu)
             let offset = Int(vcpu.registers.cs.base) + Int(vcpu.registers.ip)
-            dumpMemory(vcpu.vm.memoryRegions[0], offset: offset, count: 16)
+            print(vcpu.vm.memoryRegions[0].dumpMemory(at: offset, count: 16))
 
             fatalError("\(vmExit): \(exceptionInfo)")
 
