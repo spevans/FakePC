@@ -230,7 +230,6 @@ int_10h:
                 mov     dx, 0x40
                 mov     ds, dx
                 mov     dl, [0x49]      ; active mode
-                pop     ds
                 cmp     dl, 0x10        ; is mode valid?
                 jg      .invalid_video_page
 

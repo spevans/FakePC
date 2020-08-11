@@ -10,6 +10,7 @@
 
 import HypervisorKit
 import CInternal
+import Foundation
 
 #if canImport(Glibc)
 import Glibc
@@ -49,6 +50,7 @@ class Video: ISAIOHardware {
     private let font: Font
     private(set) var screenMode: ScreenMode
     private var display: Console
+    private var timer: Timer?
 
 
     init(vm: VirtualMachine, display: Console) throws {
@@ -57,6 +59,9 @@ class Video: ISAIOHardware {
         font = Font(width: 8, height: 16, data: font_vga_8x16.data)
         self.display = display
         self.display.updateHandler = { self.updateDisplay() }
+        self.timer = Timer.scheduledTimer(withTimeInterval: 1, repeats: true) { timer in
+                self.updateDisplay()
+        }
     }
 
 
@@ -260,8 +265,8 @@ class Video: ISAIOHardware {
 extension Video {
 
     private enum BIOSFunction: UInt8 {
-        case setVideMode = 0
-        //    case setTextCursorShape = 1
+        case setVideoMode = 0
+        case setTextCursorShape = 1
         //    case setCursorPosition = 2
         //    case getCursorPositionAndShape = 3
         //    case readLightPen = 4
@@ -296,8 +301,14 @@ extension Video {
 
         switch videoFunction {
 
-            case .setVideMode:
+            case .setVideoMode:
                 setVideo(mode: al)
+
+            case .setTextCursorShape:
+                let cl = vcpu.registers.cl & 0b11111
+                let ch = vcpu.registers.ch & 0b11111
+                debugLog("VIDEO: set cursor shape start: \(ch) end: \(cl)")
+                break
 
             case .scrollUp:
                 let bh = vcpu.registers.bh

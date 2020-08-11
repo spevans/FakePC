@@ -78,7 +78,7 @@ struct ScreenMode {
                                         textWidth: 9,
                                         textHeight: 16,
                                         vramSegment: 0xB800,
-                                        videoPageSize: 2048,
+                                        videoPageSize: 4096,
                                         videoPageCount: 8,
                                         color: .greyScale(16)
             )
@@ -92,7 +92,7 @@ struct ScreenMode {
                                         textWidth: 9,
                                         textHeight: 16,
                                         vramSegment: 0xB800,
-                                        videoPageSize: 2048,
+                                        videoPageSize: 4096,
                                         videoPageCount: 8,
                                         color: .color(16)
             )
