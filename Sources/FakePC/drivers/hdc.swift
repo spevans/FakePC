@@ -227,13 +227,21 @@ final class HDC: ISAIOHardware {
             case .formatESDIDriveUnit:
                 status = .invalidCommand
 
-            case .checkExtensionsPresent: status = disk.checkExtensionsPresent(vcpu: vcpu)
+            case .checkExtensionsPresent:
+                status = disk.checkExtensionsPresent(vcpu: vcpu)
 
             case .extendedReadSectors:
                 status = disk.extendedRead(vcpu: vcpu)
-            case .extendedWriteSectors: status = .invalidMedia
-            case .extendedVerifySectors: status = .invalidMedia
-            case .extendedSeek: status = .invalidMedia
+
+            case .extendedWriteSectors:
+                status = disk.extendedWrite(vcpu: vcpu)
+
+            case .extendedVerifySectors:
+                status = disk.extendedVerify(vcpu: vcpu)
+
+            case .extendedSeek:
+                status = .invalidCommand
+
             case .extendedGetDriveParameters:
                 status = disk.extendedGetDriveParameters(vcpu: vcpu)
         }

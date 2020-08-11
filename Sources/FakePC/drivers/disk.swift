@@ -319,8 +319,7 @@ extension Disk {
     }
 
 
-
-    func diskAccessPacket(_ packet: UnsafeRawPointer) -> SectorOperation? {
+    private func diskAccessPacket(_ packet: UnsafeRawPointer) -> SectorOperation? {
         // Check packet size
         guard packet.load(fromByteOffset: 0, as: UInt8.self) == 16 else { return nil }
 
@@ -332,8 +331,8 @@ extension Disk {
         let size = sectorCount * geometry.sectorSize
         guard size <= 0x10000 else { return nil }
 
-        let bufferSegment: UInt16 = packet.unalignedLoad(fromByteOffset: 4, as: UInt16.self)
-        let bufferOffset: UInt16 =  packet.unalignedLoad(fromByteOffset: 6, as: UInt16.self)
+        let bufferOffset: UInt16 =  packet.unalignedLoad(fromByteOffset: 4, as: UInt16.self)
+        let bufferSegment: UInt16 = packet.unalignedLoad(fromByteOffset: 6, as: UInt16.self)
         guard bufferSegment != 0xffff || bufferOffset != 0xffff else { return nil }
         guard UInt32(0x10000) - UInt32(bufferOffset) >= UInt32(size) else {
             return nil // .failure(.dmaOver64KBoundary)
@@ -361,6 +360,53 @@ extension Disk {
             count: UInt64(sectorOperation.bufferSize)) else { return .dmaOver64KBoundary }
         let buffer = UnsafeMutableRawBufferPointer(start: ptr, count: sectorOperation.bufferSize)
         return sectorOperation.readSectors(into: buffer)
+    }
+
+
+    func extendedWrite(vcpu: VirtualMachine.VCPU) -> Status {
+        let offset = UInt(vcpu.registers.ds.base) + UInt(vcpu.registers.si)
+        guard let dap = try? vcpu.vm.memory(at: PhysicalAddress(offset), count: 16) else { return .invalidCommand }
+        guard let sectorOperation = diskAccessPacket(UnsafeRawPointer(dap)) else { return .invalidCommand }
+        guard !sectorOperation.disk.isReadOnly else { return .writeProtected }
+
+        guard let ptr = try? vcpu.vm.memory(at: PhysicalAddress(UInt(sectorOperation.bufferOffset)),
+            count: UInt64(sectorOperation.bufferSize)) else { return .dmaOver64KBoundary }
+        let buffer = UnsafeRawBufferPointer(start: ptr, count: sectorOperation.bufferSize)
+        if sectorOperation.startSector == 0 {
+            debugLog("Write to Sector 0")
+            debugLog(vcpu.vm.memoryRegions[0].dumpMemory(at: Int(sectorOperation.bufferOffset), count: 512))
+        }
+        let status = sectorOperation.writeSectors(from: buffer)
+        if status != .ok {
+            // Update the DAP with the number of sectors written - This is untouched from the request
+            // so only set to zero if the write failed
+            let zero = UInt16(0)
+            dap.unalignedStoreBytes(of: zero, toByteOffset: 2, as: UInt16.self)
+        }
+        return status
+    }
+
+
+    func extendedVerify(vcpu: VirtualMachine.VCPU) -> Status {
+        let offset = UInt(vcpu.registers.ds.base) + UInt(vcpu.registers.si)
+        guard let dap = try? vcpu.vm.memory(at: PhysicalAddress(offset), count: 16) else { return .invalidCommand }
+        guard let sectorOperation = diskAccessPacket(UnsafeRawPointer(dap)) else { return .invalidCommand }
+        guard let ptr = try? vcpu.vm.memory(at: PhysicalAddress(UInt(sectorOperation.bufferOffset)),
+            count: UInt64(sectorOperation.bufferSize)) else { return .dmaOver64KBoundary }
+        let buffer = UnsafeRawBufferPointer(start: ptr, count: sectorOperation.bufferSize)
+        let status = sectorOperation.verifySectors(using: buffer)
+        if status != .ok {
+            // Update the DAP with the number of sectors written - This is untouched from the request
+            // so only set to zero if the write failed
+            let zero = UInt16(0)
+            dap.unalignedStoreBytes(of: zero, toByteOffset: 2, as: UInt16.self)
+        }
+        return status
+    }
+
+
+    func extendedSeek(vcpu: VirtualMachine.VCPU) -> Status {
+        return .invalidCommand
     }
 
 
