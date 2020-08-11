@@ -35,6 +35,15 @@ extension UnsafeMutableRawPointer {
     }
 }
 
+extension UnsafeRawPointer {
+    func unalignedLoad<T: FixedWidthInteger>(fromByteOffset offset: Int = 0, as type: T.Type) -> T {
+        var value = T(0)
+        memcpy(&value, self.advanced(by: offset), MemoryLayout<T>.size)
+        return value
+    }
+}
+
+
 
 extension UInt8 {
     init?(bcdValue: UInt8) {

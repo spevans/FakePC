@@ -106,7 +106,9 @@ final class ISA {
         let fdc = FDC(disk1: config.fd0, disk2: config.fd1)
         floppyDriveControllers = [fdc]
 
-        hardDriveControllers = []
+        let hdc = HDC(disk1: config.hd0, disk2: config.hd1)
+        hardDriveControllers = [hdc]
+
         serialPorts = []
         printerPorts = []
     }

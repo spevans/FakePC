@@ -322,5 +322,7 @@ func setupBDA(fakePC: FakePC) throws {
     bda.keyboardBufferStartAddress = 0x1E
     bda.keyboardBufferEndAddress = 0x3C
 
+    bda.numberOfHardDrives = UInt8(((fakePC.config.hd0 != nil) ? 1 : 0) + ((fakePC.config.hd1 != nil) ? 1 : 0))
+
     bda.timerCount = (fakePC.isa.rtc.secondsSinceMidnight() * 182) / 10
 }

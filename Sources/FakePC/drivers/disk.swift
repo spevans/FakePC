@@ -267,6 +267,16 @@ extension Disk {
         case setMediaTypeForFormat = 0x18
         case parkFixedDiskHeads = 0x19
         case formatESDIDriveUnit = 0x1A
+        case checkExtensionsPresent = 0x41
+        case extendedReadSectors = 0x42
+        case extendedWriteSectors = 0x43
+        case extendedVerifySectors = 0x44
+//        case lockUnlockDrive = 0x45
+//        case ejectMedia = 0x46
+        case extendedSeek = 0x47
+        case extendedGetDriveParameters = 0x48
+//        case extendedMediaChange = 0x49
+//        case initiateDiskEmulationForCdrom = 0x4A
     }
 
     enum Status: UInt8, Error {
@@ -297,5 +307,106 @@ extension Disk {
         case writeFault = 0xCC
         case statusError = 0xE0
         case senseOperationFailed = 0xFF
+    }
+
+
+    func checkExtensionsPresent(vcpu: VirtualMachine.VCPU) -> Status {
+        guard vcpu.registers.bx == 0x55aa else { return .invalidCommand }
+        vcpu.registers.bx = 0xaa55
+        vcpu.registers.ax = 0x2000  // Extensions 2.0, EDD-1.0
+        vcpu.registers.cx = 0x1     // extended disk access functions (AH=42h-44h,47h,48h) supported
+        return .ok
+    }
+
+
+
+    func diskAccessPacket(_ packet: UnsafeRawPointer) -> SectorOperation? {
+        // Check packet size
+        guard packet.load(fromByteOffset: 0, as: UInt8.self) == 16 else { return nil }
+
+        // Check Reserved byte
+        guard packet.load(fromByteOffset: 1, as: UInt8.self) == 0 else { return nil }
+
+        let sectorCount = Int(packet.unalignedLoad(fromByteOffset: 2, as: UInt16.self))
+        guard sectorCount <= 128 else { return nil }
+        let size = sectorCount * geometry.sectorSize
+        guard size <= 0x10000 else { return nil }
+
+        let bufferSegment: UInt16 = packet.unalignedLoad(fromByteOffset: 4, as: UInt16.self)
+        let bufferOffset: UInt16 =  packet.unalignedLoad(fromByteOffset: 6, as: UInt16.self)
+        guard bufferSegment != 0xffff || bufferOffset != 0xffff else { return nil }
+        guard UInt32(0x10000) - UInt32(bufferOffset) >= UInt32(size) else {
+            return nil // .failure(.dmaOver64KBoundary)
+        }
+
+        let bufferAddress = Int(bufferSegment) << 4 + Int(bufferOffset)
+        guard bufferAddress < 0xF0000 else { return nil}
+
+        let lba: UInt64 = packet.unalignedLoad(fromByteOffset: 8, as: UInt64.self)
+        guard Int(lba) + sectorCount <= geometry.totalSectors else { return nil }
+
+        return SectorOperation(disk: self, startSector: lba,
+                               sectorCount: sectorCount,
+                               bufferOffset: bufferAddress,
+                               bufferSize: sectorCount * geometry.sectorSize)
+    }
+
+
+    func extendedRead(vcpu: VirtualMachine.VCPU) -> Status {
+        let offset = UInt(vcpu.registers.ds.base) + UInt(vcpu.registers.si)
+        guard let dap = try? vcpu.vm.memory(at: PhysicalAddress(offset), count: 16) else { return .invalidCommand }
+
+        guard let sectorOperation = diskAccessPacket(UnsafeRawPointer(dap)) else { return .invalidCommand }
+        guard let ptr = try? vcpu.vm.memory(at: PhysicalAddress(UInt(sectorOperation.bufferOffset)),
+            count: UInt64(sectorOperation.bufferSize)) else { return .dmaOver64KBoundary }
+        let buffer = UnsafeMutableRawBufferPointer(start: ptr, count: sectorOperation.bufferSize)
+        return sectorOperation.readSectors(into: buffer)
+    }
+
+
+    func getDriveParameters(vcpu: VirtualMachine.VCPU) -> Status {
+        vcpu.registers.bl = 04
+        let maxCylinderNumber = geometry.tracksPerHead - 1
+        vcpu.registers.ch = UInt8(maxCylinderNumber & 0xff)
+        vcpu.registers.cl = UInt8(geometry.sectorsPerTrack & 0x3f) | (UInt8(maxCylinderNumber >> 2) & 0xc0)
+        vcpu.registers.dh = UInt8(geometry.heads - 1)
+        return .ok
+    }
+
+
+    func extendedGetDriveParameters(vcpu: VirtualMachine.VCPU) -> Status {
+        let offset = UInt(vcpu.registers.ds.base) + UInt(vcpu.registers.si)
+        let parameterBuffer: UnsafeMutableRawPointer
+        do {
+            parameterBuffer = try vcpu.vm.memory(at: PhysicalAddress(offset), count: 16)
+        } catch {
+            return .invalidCommand
+        }
+
+        // Check packet size
+        let packetSize = parameterBuffer.load(fromByteOffset: 0, as: UInt16.self)
+        guard packetSize == 0x1A || packetSize == 0x1E else { return .invalidCommand }
+
+//        let bufferSize = UInt16(0x1E)     // Size for version 2.x
+//        parameterBuffer.unalignedStoreBytes(of: bufferSize, toByteOffset: 0, as: UInt16.self)
+        let informationFlags = UInt16(2)    // DMA boundary errors not handled, CHS info valid
+        parameterBuffer.unalignedStoreBytes(of: informationFlags, toByteOffset: 2, as: UInt16.self)
+        let tracks = UInt32(geometry.tracksPerHead)
+        let heads = UInt32(geometry.heads)
+        let sectors = UInt32(geometry.sectorsPerTrack)
+        let totalSectorsOnDrive = UInt64(geometry.totalSectors)
+
+        parameterBuffer.unalignedStoreBytes(of: tracks, toByteOffset: 4, as: UInt32.self)
+        parameterBuffer.unalignedStoreBytes(of: heads, toByteOffset: 8, as: UInt32.self)
+        parameterBuffer.unalignedStoreBytes(of: sectors, toByteOffset: 0xC, as: UInt32.self)
+        parameterBuffer.unalignedStoreBytes(of: totalSectorsOnDrive, toByteOffset: 0x10, as: UInt64.self)
+        parameterBuffer.unalignedStoreBytes(of: UInt16(geometry.sectorSize), toByteOffset: 0x18, as: UInt16.self)
+
+        if packetSize == 0x1E {
+            let eddConfigurationParameters = UInt32(0xffff_ffff)   // Parameters not available
+            parameterBuffer.unalignedStoreBytes(of: eddConfigurationParameters, toByteOffset: 0x1A, as: UInt32.self)
+        }
+
+        return .ok
     }
 }

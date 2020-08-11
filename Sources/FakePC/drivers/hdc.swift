@@ -93,7 +93,7 @@ final class HDC: ISAIOHardware {
         }
 
         if status != .ok {
-            debugLog("HDC: command \(function) from drive \(drive) error: \(status)")
+            debugLog("HDC: command \(diskFunction) from drive \(drive) error: \(status)")
         }
 
         vcpu.registers.ah = status.rawValue
@@ -162,14 +162,11 @@ final class HDC: ISAIOHardware {
                 status = .invalidCommand
 
             case .readDriveParameters:
-                showRegisters(vcpu)
-                vcpu.registers.bl = 04
-                let cylinders = disk.geometry.tracksPerHead
-                vcpu.registers.ch = UInt8(cylinders & 0xff)
-                vcpu.registers.cl = UInt8(disk.geometry.sectorsPerTrack & 0x3f) | (UInt8(cylinders >> 6) & 0xc0)
-                vcpu.registers.dh = UInt8(disk.geometry.heads - 1)
-                vcpu.registers.dl = UInt8(disks.filter { $0 != nil }.count)
-                status = .ok
+                status = disk.getDriveParameters(vcpu: vcpu)
+                if status == .ok {
+                    vcpu.registers.bl = 00  // drive type
+                    vcpu.registers.dl = UInt8(disks.filter { $0 != nil }.count) // drive count
+                }
 
             case .initialiseHDControllerTables:
                 status = .invalidCommand
@@ -229,8 +226,24 @@ final class HDC: ISAIOHardware {
 
             case .formatESDIDriveUnit:
                 status = .invalidCommand
+
+            case .checkExtensionsPresent: status = disk.checkExtensionsPresent(vcpu: vcpu)
+
+            case .extendedReadSectors:
+                status = disk.extendedRead(vcpu: vcpu)
+            case .extendedWriteSectors: status = .invalidMedia
+            case .extendedVerifySectors: status = .invalidMedia
+            case .extendedSeek: status = .invalidMedia
+            case .extendedGetDriveParameters:
+                status = disk.extendedGetDriveParameters(vcpu: vcpu)
         }
 
+        if status == .invalidCommand {
+            debugLog("HDC: Invalid command: \(diskFunction)")
+        } else if status != .ok {
+            debugLog("HDC: \(diskFunction) returned status \(status)")
+            showRegisters(vcpu)
+        }
         return status
     }
 }

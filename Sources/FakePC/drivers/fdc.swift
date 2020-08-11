@@ -164,7 +164,7 @@ final class FDC: ISAIOHardware {
         }
 
         if status != .ok {
-            debugLog("FDC: command \(function) from drive \(drive) error: \(status)")
+            debugLog("FDC: command \(diskFunction) from drive \(drive) error: \(status)")
         }
 
         vcpu.registers.ah = status.rawValue
@@ -249,15 +249,11 @@ final class FDC: ISAIOHardware {
                 status = .invalidCommand
 
             case .readDriveParameters:
-                showRegisters(vcpu)
-                vcpu.registers.bl = 04
-                let geometry = disk.geometry
-                let cylinders = geometry.tracksPerHead
-                vcpu.registers.ch = UInt8(cylinders & 0xff)
-                vcpu.registers.cl = UInt8(geometry.sectorsPerTrack & 0x3f) | (UInt8(cylinders >> 6) & 0xc0)
-                vcpu.registers.dh = UInt8(geometry.heads - 1)
-                vcpu.registers.dl = 1
-                status = .ok
+                status = disk.getDriveParameters(vcpu: vcpu)
+                if status == .ok {
+                    vcpu.registers.bl = 04  // drive type
+                    vcpu.registers.dl = UInt8(disks.filter { $0 != nil }.count) // drive count
+                }
 
             case .initialiseHDControllerTables:
                 status = .invalidCommand
@@ -358,6 +354,14 @@ final class FDC: ISAIOHardware {
 
             case .formatESDIDriveUnit:
                 status = .invalidCommand
+
+            case .checkExtensionsPresent: status = disk.checkExtensionsPresent(vcpu: vcpu)
+
+            case .extendedReadSectors: status = .invalidMedia
+            case .extendedWriteSectors: status = .invalidMedia
+            case .extendedVerifySectors: status = .invalidMedia
+            case .extendedSeek: status = .invalidMedia
+            case .extendedGetDriveParameters: status = .invalidMedia
         }
 
         if status == .invalidCommand {
