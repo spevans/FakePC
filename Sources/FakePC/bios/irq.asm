@@ -51,7 +51,7 @@ irq_0:
                 out     PIC1_CMD_REG, al
 ;                mov     ax, 2
 ;                out     0xef, ax       ; Debug call
-
+                int     0x1C            ; System Timer Tick that other programs can hook
                 pop     eax
                 pop     ds
                 iret

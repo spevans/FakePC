@@ -34,13 +34,12 @@ final class FakePC {
         // Currently only KVM will emulate an PIC and PIT, HVF will not. The PIC/PIT code needs to be added into
         // HypervisorKit then it can be enabled there for HVF and the KVM one used on Linux.
         // try vm.addPICandPIT()
-
         ram = try vm.addMemory(at: 0, size: 0xA0_000) // 640K RAM everything above is Video RAM and ROM
         hma = try vm.addMemory(at: 0x100_000, size: 0x10_000) // HMA 64KB ram at 1MB mark
-        // Top 4K
-        biosRegion = try vm.addMemory(at: 0xFF000, size: 4096)
+        // Top 64K is ROM, rom image is 8K loaded into top 8K
+        biosRegion = try vm.addMemory(at: 0xF0000, size: 0x10000, readOnly: true)
         let biosImage = try Data(contentsOf: config.biosURL)
-        try biosRegion.loadBinary(from: biosImage, atOffset: 0x0)
+        try biosRegion.loadBinary(from: biosImage, atOffset: 0xE000)
         isa = try ISA(config: config, vm: vm, rootResourceManager: rootResourceManager)
         vcpu.vmExitHandler = processVMExit
     }
@@ -72,7 +71,7 @@ final class FakePC {
             if case VMExit.DataWrite.word(let value) = data {
                 let ip = UInt64(vcpu.registers.cs.base) + vcpu.registers.rip
                 // Is call from BIOS?
-                if (port >= 0xE0 && port <= 0xEF) && (ip >= 0xFF000 && ip <= 0xFFFFF) {
+                if (port >= 0xE0 && port <= 0xEF) && (ip >= 0xFE000 && ip <= 0xFFFFF) {
                     try biosCall(fakePC: self, subSystem: port, function: value)
                     break
                 } else {
@@ -88,9 +87,18 @@ final class FakePC {
             debugLog("ioIn(0x\(String(port, radix: 16)), \(dataRead) => \(data))")
             vcpu.setIn(data: data)
 
-        case .memoryViolation:
-            //print(vmExit)
-            //print("Ignoring violation:", violation)
+        case .memoryViolation(let violation):
+            if violation.access == .write {
+                if violation.guestPhysicalAddress >= PhysicalAddress(UInt(0xf0000))
+                && violation.guestPhysicalAddress <= PhysicalAddress(UInt(0xfffff)) {
+                    // Ignore writes to the BIOS
+                    print("Skipping BIOS write: \(violation)")
+                    try vcpu.skipInstruction()
+                } else {
+                    showRegisters(vcpu)
+                    fatalError("memory violation")
+                }
+            }
             break
 
         case .exception(let exceptionInfo):

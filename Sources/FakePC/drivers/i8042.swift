@@ -569,7 +569,10 @@ extension I8042 {
         let vcpu = vm.vcpus[0]
 
         guard let keyboardFunction = BIOSFunction(rawValue: function) else {
-            fatalError("KEYBOARD: unknown function 0x\(String(function, radix: 16))")
+            debugLog("KEYBOARD: AX=0x\(String(ax, radix: 16)) not implemented")
+            vcpu.registers.rflags.zero = false
+            vcpu.registers.rflags.carry = true
+            return
         }
 
         switch keyboardFunction {

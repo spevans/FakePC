@@ -203,6 +203,7 @@ class Video: ISAIOHardware {
 
 
     func writeCharacterAndColorAtCursor(character: UInt8, page: UInt8, color: UInt8? = nil, gfxColor: UInt8? = nil, count: UInt16) {
+        guard count > 0 else { return  }
         let bda = BDA()
         let cursor = bda.cursorPositionForPage0
         var cursorX = Int(cursor & 0xff)
@@ -211,11 +212,15 @@ class Video: ISAIOHardware {
         for _ in 0..<count {
             writeCharAndColor(character: character, page: page, color: color, x: cursorX, y: cursorY)
             cursorX += 1
-            if cursorX == screenMode.textWidth {
+            if cursorX == screenMode.textColumns {
                 cursorX = 0
                 cursorY += 1
+                if cursorY >= screenMode.textRows {
+                    break
+                }
             }
         }
+        display.updateDisplay()
     }
 
 
@@ -341,9 +346,7 @@ extension Video {
                 let bl = vcpu.registers.bl
                 let bh = vcpu.registers.bh
                 let cx = vcpu.registers.cx
-                if cx > 0 {
-                    writeCharacterAndColorAtCursor(character: al, page: bh, gfxColor: bl, count: cx)
-            }
+                writeCharacterAndColorAtCursor(character: al, page: bh, gfxColor: bl, count: cx)
 
             case .setColorOrPalette: fallthrough
             case .writePixel: fallthrough
@@ -358,6 +361,7 @@ extension Video {
             case .paletteRegisterControl: fallthrough
 
             case .characterGeneratorControl:
+                showRegisters(vcpu)
                 fatalError("\(videoFunction): not implemented")
 
             case .videoSubsystemControl:

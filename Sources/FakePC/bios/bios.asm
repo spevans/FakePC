@@ -5,15 +5,15 @@
 ;;;
 
                 %macro OFFSET 1
-                    times %1 - ($ - $$)   db 0x90
+                    times %1 - ($ - $$)   db 0x00
                 %endmacro
 
-                ;; 4K BIOS Located at FF000, entry point at FFFF:0000 at end
+                ;; 8K BIOS Located at FE000, entry point at FFFF:0000 at end
 
-                BIOS_SEG    EQU     0xF000
+                BIOS_SEGMENT    EQU     0xF000
+                BIOS_OFFSET     EQU     0xE000
 
-
-                ORG     0xF000          ; F000:F000  => FF000
+                ORG     BIOS_OFFSET      ; F000:E000  => FE000
 
 biosinit:
                 cli
@@ -70,9 +70,6 @@ set_vector_end:
                 ;; Boot the system
                 int     0x19
 
-
-dummy_vector:
-                iret
 
 %include "Sources/FakePC/bios/video.asm"
 
@@ -176,6 +173,12 @@ int_1a_func1:   cmp     ah, 1
 int_1a_others:  out 0xE8, ax
                 retf    2
 
+                ;; Next 2 interrupts are dummy handlers that are hooked by other programs.
+int_1bh:        ;; KEYBOARD - CONTROL-BREAK HANDLER
+int_1ch:        ;; TIME - SYSTEM TIMER TICK
+dummy_vector:
+                iret
+
 print:          ;; DS:SI => ASCIIZ string
                 lodsb
                 test    al,al
@@ -188,6 +191,23 @@ print:          ;; DS:SI => ASCIIZ string
 
 ;; DATA
 
+int_1eh:        OFFSET  0x0FC7  ; F000h:EFC7h SYSTEM DATA - DISKETTE PARAMETERS
+                db      0       ; first specify byte
+                db      1       ; second specify byte
+                db      1       ; delay until motor turned off in clock ticks
+                db      2       ; Bytes per sector (00h = 128, 01h = 256, 02h = 512, 03h = 1024)
+                db      21      ; sectors per track (maximum if different for different tracks)
+                db      0x1b    ; length of gap between sectors (2Ah for 5.25", 1Bh for 3.5")
+                db      0       ; data length (ignored if bytes-per-sector field nonzero)
+                db      0x6c    ; gap length when formatting (50h for 5.25", 6Ch for 3.5")
+                db      0xf6    ; format filler byte (default F6h)
+                db      1       ; motor start time in 1/8 seconds
+
+int_1dh:        OFFSET  0x10A4  ; F000h:F0A4h INT 1D - SYSTEM DATA - VIDEO PARAMETER TABLES
+
+int_1fh:        OFFSET  0x1A6E  ; F000h:FA6Eh INT 1F - SYSTEM DATA - 8x8 GRAPHICS FONT
+
+
 msg_no_basic:   db      "No BASIC ROM Installed", 0x0A, 0x0D, 0
 
 
@@ -196,7 +216,7 @@ vectors:        ;; Starting interrupt, vector count, vectors
                 dw      0x08, 2
                 dw      irq_0,
                 dw      irq_1,
-                dw      0x10, 11
+                dw      0x10, 16
                 dw      int_10h
                 dw      int_11h,
                 dw      int_12h,
@@ -208,14 +228,19 @@ vectors:        ;; Starting interrupt, vector count, vectors
                 dw      int_18h,
                 dw      int_19h,
                 dw      int_1ah,
+                dw      int_1bh,
+                dw      int_1ch,
+                dw      int_1dh,
+                dw      int_1eh,
+                dw      int_1fh,
                 dw      0x0, 0
 
                 ;; 8086 Startup at FFFF:0000 => FFFF0
                 ;; BIOS Loaded at 0xFF000
-                times   4080 - ($-$$) db 0
-                jmp     0xF000:0xF000
+                OFFSET  8192 - 16
+                jmp     BIOS_SEGMENT:BIOS_OFFSET
 
                 db      "12/27/19", 0
                 db      0xFC
                 db      0
-                OFFSET  4096
+                OFFSET  8192
