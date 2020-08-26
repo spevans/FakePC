@@ -25,7 +25,6 @@ struct MachineConfig {
     private(set) var hd0: Disk? = nil
     private(set) var hd1: Disk? = nil
 
-
     init<C: Collection>(_ arguments: C) where C.Element == String {
         for argument in arguments {
             if argument == "--text" {
@@ -41,6 +40,7 @@ struct MachineConfig {
                     case "--fd1": fd1 = FDC.parseCommandLineArguments(parameters[1])
                     case "--hd0": hd0 = HDC.parseCommandLineArguments(parameters[1])
                     case "--hd1": hd1 = HDC.parseCommandLineArguments(parameters[1])
+                    case "--cdrom": hd1 = HDC.parseCommandLineArgumentsFor(cdrom: parameters[1])
                     default: fatalError("Unknown option: \(parameters[0])")
 
                 }

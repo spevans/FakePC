@@ -33,6 +33,13 @@ extension FileHandle {
 // Storage is implemented as a URL to a file on the host drive.
 final class Disk {
 
+    enum DriveType {
+        case floppy
+        case harddisk
+        case cdrom
+    }
+
+
     struct Geometry: Equatable, Hashable {
         let sectorsPerTrack: Int
         let tracksPerHead: Int
@@ -61,6 +68,15 @@ final class Disk {
             totalSectors = sectorsPerTrack * tracksPerHead * heads
         }
 
+        // LBA
+        init(totalSize: Int, sectorSize: Int) {
+            sectorsPerTrack = 0
+            tracksPerHead = 0
+            heads = 0
+            self.sectorSize = sectorSize
+            self.totalSectors = totalSize / sectorSize  // Round down
+        }
+
         // LBA 0 is Head 0, Track 0, sector 0
         func logicalSector(head: Int, track: Int, sector: Int) -> UInt64 {
             return UInt64((head * sectorsPerTrack) + (track * sectorsPerTrack * heads) + sector)
@@ -71,17 +87,19 @@ final class Disk {
     let fileHandle: FileHandle
     let geometry: Geometry
     let isReadOnly: Bool
-    let isFloppyDisk: Bool
+    let device: DriveType
+    let totalSize: UInt64
 
-    private var data: Data
     private(set) var lastStatus: Status = .ok
     private var currentTrack = 0
 
     var sectorSize: Int { geometry.sectorSize }
-    var isHardDisk: Bool { !isFloppyDisk }
+    var isFloppyDisk: Bool { device == .floppy }
+    var isHardDisk: Bool { device == .harddisk }
+    var isCdrom: Bool { device == .cdrom }
 
 
-    static func fileSizeInBytes(for path: String) -> UInt64? {
+    static func fileSizeInBytes(path: String) -> UInt64? {
         guard let attributes = try? FileManager.default.attributesOfItem(atPath: path) else {
             return nil
         }
@@ -89,10 +107,10 @@ final class Disk {
     }
 
 
-    init?(imageName: String, geometry: Geometry? = nil, floppyDisk: Bool, readOnly: Bool = false) {
+    init?(imageName: String, geometry: Geometry? = nil, device: DriveType, readOnly: Bool = false) {
         imageURL = URL(fileURLWithPath: imageName, isDirectory: false)
         isReadOnly = readOnly || !FileManager.default.isWritableFile(atPath: imageName)
-        isFloppyDisk = floppyDisk
+        self.device = device
 
         do {
             if isReadOnly {
@@ -101,24 +119,24 @@ final class Disk {
                 try fileHandle = FileHandle(forUpdating: imageURL)
             }
 
-            guard let data = try fileHandle.readToEnd() else {
+            totalSize = fileHandle.seekToEndOfFile()
+            guard totalSize > 0 else {
                 throw DiskError.zeroSizedMedia
             }
-            self.data = data
         } catch {
             fatalError("Error initialising Disk from: '\(imageName)': \(error)")
         }
 
         if let geometry = geometry {
             self.geometry = geometry
-            guard geometry.capacity == UInt64(data.count) else {
+            guard geometry.capacity == totalSize else {
                 debugLog("Image size != data size")
                 return nil
             }
         } else {
             let sectorSize = 512
-            let sectors = (data.count + sectorSize - 1) / sectorSize
-            self.geometry = Geometry(sectors: sectors, sectorSize: sectorSize)
+            let sectors = (totalSize + UInt64(sectorSize) - 1) / UInt64(sectorSize)
+            self.geometry = Geometry(sectors: Int(sectors), sectorSize: sectorSize)
         }
     }
 
@@ -150,13 +168,15 @@ final class Disk {
         let bufferOffset: Int
         let bufferSize: Int
 
-        var offset: Int { Int(startSector) * disk.sectorSize }
+        var offset: UInt64 { startSector * UInt64(disk.sectorSize) }
         var size: Int { Int(sectorCount) * disk.sectorSize }
-        var range: Range<Int> { offset..<(offset + size) }
+
 
         func readSectors(into buffer: UnsafeMutableRawBufferPointer) -> Status {
+            disk.fileHandle.seek(toFileOffset: offset)
+            let source = disk.fileHandle.readData(ofLength: size)
             assert(size == buffer.count)
-            disk.data.copyBytes(to: buffer, from: range)
+            source.copyBytes(to: buffer)
             return .ok
         }
 
@@ -172,12 +192,12 @@ final class Disk {
         func writeSectors(from buffer: UnsafeRawBufferPointer) -> Status {
             guard !disk.isReadOnly else { return .writeProtected }
             assert(size == buffer.count)
-            disk.data.replaceSubrange(range, with: buffer)
+
             debugLog("DISK: Writing \(size) bytes @ offset \(offset)")
-            disk.fileHandle.seek(toFileOffset: UInt64(offset))
-            let subData = disk.data[range]
-            disk.fileHandle.write(subData)
-            debugLog("DISK: Wrote \(subData.count) bytes")
+            let source = Data(buffer)
+            disk.fileHandle.seek(toFileOffset: offset)
+            disk.fileHandle.write(source)
+            debugLog("DISK: Wrote \(buffer.count) bytes")
             return .ok
         }
     }
@@ -271,12 +291,16 @@ extension Disk {
         case extendedReadSectors = 0x42
         case extendedWriteSectors = 0x43
         case extendedVerifySectors = 0x44
-//        case lockUnlockDrive = 0x45
-//        case ejectMedia = 0x46
+        case lockUnlockDrive = 0x45
+        case ejectMedia = 0x46
         case extendedSeek = 0x47
         case extendedGetDriveParameters = 0x48
-//        case extendedMediaChange = 0x49
-//        case initiateDiskEmulationForCdrom = 0x4A
+        case extendedMediaChange = 0x49
+        case initiateDiskEmulationForCdrom = 0x4A
+        case terminateDiskEmulationForCdrom = 0x4B
+        case initiateDiskEmulateForCdromAndBoot = 0x4C
+        case returnBootCatalogForCdrom = 0x4D
+        case sendPacketCommand = 0x4E
     }
 
     enum Status: UInt8, Error {
@@ -315,6 +339,9 @@ extension Disk {
         vcpu.registers.bx = 0xaa55
         vcpu.registers.ax = 0x2000  // Extensions 2.0, EDD-1.0
         vcpu.registers.cx = 0x1     // extended disk access functions (AH=42h-44h,47h,48h) supported
+        if isCdrom {
+            vcpu.registers.cx = 0x3  // removable drive controller functions (AH=45h,46h,48h,49h,INT 15/AH=52h) supported
+        }
         return .ok
     }
 
@@ -373,7 +400,6 @@ extension Disk {
             count: UInt64(sectorOperation.bufferSize)) else { return .dmaOver64KBoundary }
         let buffer = UnsafeRawBufferPointer(start: ptr, count: sectorOperation.bufferSize)
         if sectorOperation.startSector == 0 {
-            debugLog("Write to Sector 0")
             debugLog(vcpu.vm.memoryRegions[0].dumpMemory(at: Int(sectorOperation.bufferOffset), count: 512))
         }
         let status = sectorOperation.writeSectors(from: buffer)
@@ -412,10 +438,16 @@ extension Disk {
 
     func getDriveParameters(vcpu: VirtualMachine.VCPU) -> Status {
         vcpu.registers.bl = 04
-        let maxCylinderNumber = geometry.tracksPerHead - 1
-        vcpu.registers.ch = UInt8(maxCylinderNumber & 0xff)
-        vcpu.registers.cl = UInt8(geometry.sectorsPerTrack & 0x3f) | (UInt8(maxCylinderNumber >> 2) & 0xc0)
-        vcpu.registers.dh = UInt8(geometry.heads - 1)
+        if geometry.hasCHS {
+            let maxCylinderNumber = geometry.tracksPerHead - 1
+            vcpu.registers.ch = UInt8(maxCylinderNumber & 0xff)
+            vcpu.registers.cl = UInt8(geometry.sectorsPerTrack & 0x3f) | (UInt8(maxCylinderNumber >> 2) & 0xc0)
+            vcpu.registers.dh = UInt8(geometry.heads - 1)
+        } else {
+            vcpu.registers.ch = 0
+            vcpu.registers.cl = 0
+            vcpu.registers.dh = 0
+        }
         return .ok
     }
 
@@ -435,7 +467,15 @@ extension Disk {
 
 //        let bufferSize = UInt16(0x1E)     // Size for version 2.x
 //        parameterBuffer.unalignedStoreBytes(of: bufferSize, toByteOffset: 0, as: UInt16.self)
-        let informationFlags = UInt16(2)    // DMA boundary errors not handled, CHS info valid
+
+        var informationFlags = UInt16(0)    // DMA boundary errors not handled
+        if geometry.hasCHS { informationFlags |= 2 } // has CHS
+        if isFloppyDisk || isCdrom { informationFlags |= 4 } // removable drive
+        if isCdrom {
+            informationFlags |= 16 // drive has change line support
+            informationFlags |= 32 // drive can be locked
+        }
+
         parameterBuffer.unalignedStoreBytes(of: informationFlags, toByteOffset: 2, as: UInt16.self)
         let tracks = UInt32(geometry.tracksPerHead)
         let heads = UInt32(geometry.heads)

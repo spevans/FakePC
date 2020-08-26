@@ -66,7 +66,7 @@ final class ISA {
     let keyboardController: I8042
     let rtc: RTC
     let video: Video
-    let floppyDriveControllers: [FDC]
+    let floppyDriveController: FDC
     let hardDriveControllers: [HDC]
     let serialPorts: [Serial]
     let printerPorts: [Printer]
@@ -104,30 +104,13 @@ final class ISA {
         try resourceManager.registerIOPort(ports: 0x3B0...0x3DF, video)
 
         let fdc = FDC(disk1: config.fd0, disk2: config.fd1)
-        floppyDriveControllers = [fdc]
+        floppyDriveController = fdc
 
         let hdc = HDC(disk1: config.hd0, disk2: config.hd1)
         hardDriveControllers = [hdc]
 
         serialPorts = []
         printerPorts = []
-    }
-
-
-    func diskDrive(_ drive: Int) -> ISAIOHardware? {
-        // Each controller handles 2 drives
-        if drive < 0x80 {
-            let fdc = drive >> 1
-            if floppyDriveControllers.count > fdc {
-                return floppyDriveControllers[fdc]
-            }
-        } else {
-            let hdc = (drive - 0x80) >> 1
-            if hardDriveControllers.count > hdc {
-                return hardDriveControllers[hdc]
-            }
-        }
-        return nil
     }
 
 
