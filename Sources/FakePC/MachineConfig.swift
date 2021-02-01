@@ -12,11 +12,7 @@
 import Foundation
 
 struct MachineConfig {
-    #if os(Linux)
-    let biosURL = URL(fileURLWithPath: "/home/spse/src/osx/FakePC/bios.bin", isDirectory: false)
-#else
-    let biosURL = URL(fileURLWithPath: "/Users/spse/Files/src/osx/FakePC/bios.bin", isDirectory: false)
-#endif
+    let biosURL: URL
     private(set) var textMode: Bool = false
 
     private(set) var fd0: Disk? = nil
@@ -26,6 +22,7 @@ struct MachineConfig {
     private(set) var hd1: Disk? = nil
 
     init<C: Collection>(_ arguments: C) where C.Element == String {
+        var _biosURL: URL?
         for argument in arguments {
             if argument == "--text" {
                 textMode = true
@@ -36,6 +33,7 @@ struct MachineConfig {
             if parameters.count == 2, parameters.last != "" {
 
                 switch String(parameters[0]) {
+                    case "--bios": _biosURL = URL(fileURLWithPath: parameters[1], isDirectory: false)
                     case "--fd0": fd0 = FDC.parseCommandLineArguments(parameters[1])
                     case "--fd1": fd1 = FDC.parseCommandLineArguments(parameters[1])
                     case "--hd0": hd0 = HDC.parseCommandLineArguments(parameters[1])
@@ -48,5 +46,9 @@ struct MachineConfig {
                 fatalError("Unknown argument: \(argument)")
             }
         }
+        if _biosURL == nil {
+            fatalError("No bios specified")
+        }
+        biosURL = _biosURL!
     }
 }

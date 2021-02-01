@@ -36,10 +36,14 @@ final class FakePC {
         // try vm.addPICandPIT()
         ram = try vm.addMemory(at: 0, size: 0xA0_000) // 640K RAM everything above is Video RAM and ROM
         hma = try vm.addMemory(at: 0x100_000, size: 0x10_000) // HMA 64KB ram at 1MB mark
-        // Top 64K is ROM, rom image is 8K loaded into top 8K
-        biosRegion = try vm.addMemory(at: 0xF0000, size: 0x10000, readOnly: true)
+
+        let biosRomSize: UInt64 = 0x40000   // 256K
+        biosRegion = try vm.addMemory(at: 0xC0000, size: biosRomSize, readOnly: true)
+        // Load BIOS Image into top of ROM
         let biosImage = try Data(contentsOf: config.biosURL)
-        try biosRegion.loadBinary(from: biosImage, atOffset: 0xE000)
+        let loadAddress = biosRomSize - UInt64(biosImage.count)
+        debugLog("BIOS image size 0x\(String(biosImage.count, radix: 16)) load address: 0x\(String(loadAddress, radix: 16))")
+        try biosRegion.loadBinary(from: biosImage, atOffset: loadAddress)
         isa = try ISA(config: config, vm: vm, rootResourceManager: rootResourceManager)
         vcpu.vmExitHandler = processVMExit
     }
