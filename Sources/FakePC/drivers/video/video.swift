@@ -393,7 +393,7 @@ extension Video {
              for x in 0..<cx {
              let idx =  (al & 2 == 2) ? x * 2 : x
              let ch = rawPtr.load(fromByteOffset: Int(idx), as: UInt8.self)
-             print(String(Unicode.Scalar(ch)))
+             debugLog(String(Unicode.Scalar(ch)))
              }
 
              fatalError("\(videoFunction): not implemented")*/

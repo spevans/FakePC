@@ -92,7 +92,7 @@ final class FakePC {
                 if violation.guestPhysicalAddress >= PhysicalAddress(UInt(0xf0000))
                 && violation.guestPhysicalAddress <= PhysicalAddress(UInt(0xfffff)) {
                     // Ignore writes to the BIOS
-                    print("Skipping BIOS write: \(violation)")
+                    debugLog("Skipping BIOS write: \(violation)")
                     try vcpu.skipInstruction()
                 } else {
                     showRegisters(vcpu)
@@ -104,7 +104,7 @@ final class FakePC {
         case .exception(let exceptionInfo):
             showRegisters(vcpu)
             let offset = Int(vcpu.registers.cs.base) + Int(vcpu.registers.ip)
-            print(vcpu.vm.memoryRegions[0].dumpMemory(at: offset, count: 16))
+            debugLog(vcpu.vm.memoryRegions[0].dumpMemory(at: offset, count: 16))
 
             fatalError("\(vmExit): \(exceptionInfo)")
 

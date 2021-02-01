@@ -75,7 +75,7 @@ private func setupDisks(_ isa: ISA) {
     }
     debugLog("BIOS disk mapping:")
     for key in disks.keys.sorted() {
-        print("\(String(key, radix: 16)):", disks[key]!)
+        debugLog("\(String(key, radix: 16)):", disks[key]!)
     }
 }
 
