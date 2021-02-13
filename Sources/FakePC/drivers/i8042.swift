@@ -574,7 +574,7 @@ extension I8042 {
             vcpu.registers.rflags.carry = true
             return
         }
-
+        logger.trace("KEYBOARD: \(keyboardFunction)")
         switch keyboardFunction {
             case .waitForKeyAndRead, .extendedWaitForKeyAndRead:
                 vcpu.registers.ax = keyboardBuffer.waitForData()

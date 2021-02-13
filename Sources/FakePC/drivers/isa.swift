@@ -70,6 +70,7 @@ final class ISA {
     let hardDriveControllers: [HDC]
     let serialPorts: [Serial]
     let printerPorts: [Printer]
+    let misc: MiscHardware
 
     private unowned let vm: VirtualMachine
 
@@ -113,8 +114,16 @@ final class ISA {
         let hdc = HDC(disk1: config.hd0, disk2: config.hd1)
         hardDriveControllers = [hdc]
 
-        serialPorts = []
+        let com1 = Serial(basePort: 0x3f8, irq: 4)
+        try resourceManager.registerIOPort(ports: 0x3f8...0x3ff, com1)
+
+        serialPorts = [
+            com1
+        ]
         printerPorts = []
+
+        misc = MiscHardware()
+        try resourceManager.registerIOPort(port: 0x92, misc)
     }
 
 
@@ -134,5 +143,41 @@ final class ISA {
         pit.process()
         vpic.pic2.process()
         vpic.pic1.process()
+    }
+}
+
+
+final class MiscHardware: ISAIOHardware {
+
+    private var portA: UInt8 = 0
+
+    func ioOut(port: IOPort, operation: VMExit.DataWrite) throws {
+        guard case .byte(let byte) = operation else {
+            logger.debug("PORTA: Unexpected write of \(operation) to port 0x\(String(port, radix: 16))")
+            return
+        }
+
+        switch port {
+            case 0x92:      // PS/2 system control port A
+                portA = byte
+                let a20Active = byte & 0x2 == 0x2
+                logger.debug("PORTA: A20 enabled: \(a20Active)")
+
+            default: fatalError("PORTA: Unexpected IN port access 0x\(String(port, radix: 16))")
+        }
+
+    }
+
+
+    func ioIn(port: IOPort, operation: VMExit.DataRead) -> VMExit.DataWrite {
+        switch port {
+            case 0x92:      // PS/2 system control port A
+                return .byte(portA)
+
+            default: fatalError("PORTA: Unexpected IN port access 0x\(String(port, radix: 16))")
+        }
+    }
+
+    func process() {
     }
 }
