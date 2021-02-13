@@ -128,14 +128,12 @@ class Video: ISAIOHardware {
     }
 
 
-    private func writeCharAndColor(character: UInt8, page: UInt8, color: UInt8? = nil, x: Int, y: Int) {
+    private func writeCharAndColor(character: UInt8, page: UInt8, color: UInt8, x: Int, y: Int) {
         let vramBuffer = vram.rawBuffer
         var offset = y * Int(screenMode.textColumns) + x
         offset *= 2
         vramBuffer[offset] = character
-        if let color = color {
-            vramBuffer[offset + 1] = color
-        }
+        vramBuffer[offset + 1] = color
         display.updateDisplay()
     }
 
@@ -202,7 +200,7 @@ class Video: ISAIOHardware {
     }
 
 
-    func writeCharacterAndColorAtCursor(character: UInt8, page: UInt8, color: UInt8? = nil, gfxColor: UInt8? = nil, count: UInt16) {
+    func writeCharacterAndColorAtCursor(character: UInt8, page: UInt8, color: UInt8, count: UInt16) {
         guard count > 0 else { return  }
         let bda = BDA()
         let cursor = bda.cursorPositionForPage0
@@ -224,7 +222,7 @@ class Video: ISAIOHardware {
     }
 
 
-    func ttyOutput(character: UInt8, page: UInt8, gfxColor: UInt8) {
+    func ttyOutput(character: UInt8, page: UInt8, color: UInt8) {
         var bda = BDA()
         let cursor = bda.cursorPositionForPage0
         var cursorX = Int(cursor & 0xff)
@@ -250,7 +248,7 @@ class Video: ISAIOHardware {
             }
 
             default:
-                writeCharAndColor(character: character, page: page, color: nil, x: cursorX, y: cursorY)
+                writeCharAndColor(character: character, page: page, color: color, x: cursorX, y: cursorY)
                 cursorX += 1
                 if cursorX >= Int(screenMode.textColumns) {
                     cursorX = 0
@@ -343,10 +341,10 @@ extension Video {
                 writeCharacterAndColorAtCursor(character: al, page: bh, color: bl, count: cx)
 
             case .writeCharacterAtCursor:
-                let bl = vcpu.registers.bl
                 let bh = vcpu.registers.bh
                 let cx = vcpu.registers.cx
-                writeCharacterAndColorAtCursor(character: al, page: bh, gfxColor: bl, count: cx)
+                let color = screenMode.isTextMode ? 0x7 : vcpu.registers.bl
+                writeCharacterAndColorAtCursor(character: al, page: bh, color: color, count: cx)
 
             case .setColorOrPalette: fallthrough
             case .writePixel: fallthrough
@@ -356,7 +354,7 @@ extension Video {
             case .ttyOutput:
                 let bl = vcpu.registers.bl
                 let bh = vcpu.registers.bh
-                ttyOutput(character: al, page: bh, gfxColor: bl)
+                ttyOutput(character: al, page: bh, color: bl)
 
             case .paletteRegisterControl: fallthrough
 

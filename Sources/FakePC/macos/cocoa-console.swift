@@ -12,6 +12,39 @@
 
 import Cocoa
 
+// VGA RAMDAC is 18bit, 6bits per colour
+fileprivate struct VGAPaletteEntry {
+    let red: UInt8
+    let green: UInt8
+    let blue: UInt8
+
+    static let black = VGAPaletteEntry(red: 0x0, green: 0, blue: 0)
+    static let blue = VGAPaletteEntry(red: 0x0, green: 0, blue: 0xAA)
+    static let green = VGAPaletteEntry(red: 0x0, green: 0xAA, blue: 0)
+    static let cyan = VGAPaletteEntry(red: 0x0, green: 0xAA, blue: 0xAA)
+    static let red = VGAPaletteEntry(red: 0xAA, green: 0, blue: 0)
+    static let magenta = VGAPaletteEntry(red: 0xAA, green: 0, blue: 0xAA)
+    static let brown = VGAPaletteEntry(red: 0xAA, green: 0x55, blue: 0)
+    static let lightgrey = VGAPaletteEntry(red: 0xAA, green: 0xAA, blue: 0xAA)
+
+    static let darkgrey = VGAPaletteEntry(red: 0x55, green: 0x55, blue: 0x55)
+    static let brightBlue = VGAPaletteEntry(red: 0x55, green: 0x55, blue: 0xFF)
+    static let brightGreen = VGAPaletteEntry(red: 0x55, green: 0xFF, blue: 0x55)
+    static let brightCyan = VGAPaletteEntry(red: 0x55, green: 0xFF, blue: 0xFF)
+    static let brightRed = VGAPaletteEntry(red: 0xFF, green: 0x55, blue: 0x55)
+    static let brightMagenta = VGAPaletteEntry(red: 0xFF, green: 0x55, blue: 0xFF)
+    static let brightYellow = VGAPaletteEntry(red: 0xFF, green: 0xFF, blue: 0x55)
+    static let brightWhite = VGAPaletteEntry(red: 0xFF, green: 0xFF, blue: 0xFF)
+
+}
+
+// FIXME: In the future the palette should be loaded from the card's memory
+private let textPalette: [VGAPaletteEntry] = [
+    .black, .blue, .green, .cyan, .red, .magenta, .brown, .lightgrey,
+    .darkgrey, .brightBlue, .brightGreen, .brightCyan, .brightRed, .brightMagenta, .brightYellow, .brightWhite
+]
+
+
 
 class CocoaConsole: Console {
     private let window: NSWindow
@@ -20,12 +53,11 @@ class CocoaConsole: Console {
 
     let keyboard: PS2Device? = Keyboard()
     let mouse: PS2Device? = nil
-    private var fontCache: [NSImage?]
+    private var fontCache: [UInt16: NSImage] = [:]
     var updateHandler: (() -> ())?
 
 
     init() {
-        fontCache = Array<NSImage?>(repeating: nil, count: 256)
         let rect = NSRect(x: 100, y: 100, width: 1, height: 1)
         let mask: NSWindow.StyleMask = [.titled, .closable, .miniaturizable, .fullScreen]
         window = NSWindow(contentRect: rect, styleMask: mask, backing: .buffered, defer: false)
@@ -70,27 +102,78 @@ class CocoaConsole: Console {
         }
     }
 
+    var screenDump = ""
+    private func dumpTextMemory(screenMode: ScreenMode, newCharacter: (Int, Int) -> (character: UInt8, attribute: UInt8)?) -> String {
+        var line = ""
+        for row in 0..<screenMode.textRows {
+            for column in 0..<screenMode.textColumns {
+                let (character, attribute) = newCharacter(row, column)!
+                let ch = (character >= 32 && character < 127) ? String(Character(Unicode.Scalar(character))) : "?"
+                let attr = hexNum(attribute, width: 2)
+                line.append("\(ch)\(attr) ")
+            }
+            line.append("\n")
+        }
+        return line
+    }
+
 
     func rasteriseTextMemory(screenMode: ScreenMode, font: Font, newCharacter: (Int, Int) -> (character: UInt8, attribute: UInt8)?) {
 
+//        if screenMode.isTextMode {
+//            screenDump = dumpTextMemory(screenMode: screenMode, newCharacter: newCharacter)
+//        }
+
         func characterImage(character: UInt8, attribute: UInt8) -> NSImage {
+            precondition(font.width.isMultiple(of: 8))
             let offset = (Int(character) * font.characterSize)
             let ptr = font.fontData.advanced(by: offset)
-            let arrayPtr: UnsafeMutablePointer<UnsafeMutablePointer<UInt8>?>? = UnsafeMutablePointer<UnsafeMutablePointer<UInt8>?>.allocate(capacity: 1)
-            arrayPtr!.pointee = UnsafeMutablePointer(mutating: ptr)
-
-            let imagerep = NSBitmapImageRep(bitmapDataPlanes: arrayPtr,
-                                            pixelsWide: font.width,
+            let characterData = UnsafeBufferPointer<UInt8>(start: ptr, count: font.bytesPerRow * font.height)
+            precondition(font.width == screenMode.textWidth || font.width == screenMode.textWidth - 1)
+            let imagerep = NSBitmapImageRep(bitmapDataPlanes: nil,
+                                            pixelsWide: Int(screenMode.textWidth),
                                             pixelsHigh: font.height,
-                                            bitsPerSample: 1,
-                                            samplesPerPixel: 1,
+                                            bitsPerSample: 8,
+                                            samplesPerPixel: 3,
                                             hasAlpha: false,
                                             isPlanar: false,
-                                            colorSpaceName: NSColorSpaceName.calibratedWhite,
-                                            bytesPerRow: font.bytesPerRow,
-                                            bitsPerPixel: 1)
+                                            colorSpaceName: NSColorSpaceName.calibratedRGB,
+                                            bytesPerRow: Int(screenMode.textWidth) * 3,
+                                            bitsPerPixel: 24)!
+
+            // Convert the source font bitmap into 8bits per pixel with the colour set to the attribute
+            var srcIdx = 0
+            var bitmapIdx = 0
+            let bitmapBuffer = UnsafeMutableBufferPointer(start: imagerep.bitmapData!, count: Int(screenMode.textWidth) * font.height * 3)
+
+            let foregroundColour = textPalette[Int(attribute & 0xf)]
+            let backgroundColour = textPalette[Int((attribute >> 4) & 0xf)]
+
+            for _ in 0..<font.height {
+                for _ in 0..<font.bytesPerRow {
+                    let srcByte = characterData[srcIdx]
+                    srcIdx += 1
+                    for x: UInt8 in 0...7 {
+                        let bit = 1 << (7 - x)
+                        let colour = (srcByte & bit) == 0 ? backgroundColour : foregroundColour
+                        bitmapBuffer[bitmapIdx + 0] = colour.red
+                        bitmapBuffer[bitmapIdx + 1] = colour.green
+                        bitmapBuffer[bitmapIdx + 2] = colour.blue
+                        bitmapIdx += 3
+
+                        if x == 7 && screenMode.textWidth == (font.width + 1) {
+                            // Repeat the last column of a 8pixels wide font if the screen mode is 9pixels wide to emulate the text mode stretch
+                            bitmapBuffer[bitmapIdx + 0] = colour.red
+                            bitmapBuffer[bitmapIdx + 1] = colour.green
+                            bitmapBuffer[bitmapIdx + 2] = colour.blue
+                            bitmapIdx += 3
+                        }
+                    }
+                }
+            }
+
             let image = NSImage()
-            image.addRepresentation(imagerep!)
+            image.addRepresentation(imagerep)
             return image
         }
 
@@ -108,15 +191,16 @@ class CocoaConsole: Console {
             for column in 0..<screenMode.textColumns {
                 if let (character, attribute) = newCharacter(row, column) {
                     let charImage: NSImage
-                    if let image = fontCache[Int(character)] {
+                    let cacheKey = UInt16(UInt16(attribute) << 8 | UInt16(character))
+                    if let image = fontCache[cacheKey] {
                         charImage = image
                     } else {
                         charImage = characterImage(character: character, attribute: attribute)
-                        fontCache[Int(character)] = charImage
+                        fontCache[cacheKey] = charImage
                     }
                     let rect = NSRect(x: column * Int(screenMode.textWidth),
                                       y: (screenMode.textRows - row - 1) * font.height,
-                                      width: font.width,
+                                      width: Int(screenMode.textWidth),
                                       height: font.height)
 
                     charImage.draw(in: rect)
