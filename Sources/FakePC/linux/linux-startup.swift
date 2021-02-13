@@ -11,11 +11,8 @@
 #if os(Linux)
 
 
-func startupWith(config: MachineConfig) {
-    let console = SDLConsole()
-    ISA.setConsole(console)
-
-    runVMThread()
+func startupWith(_ fakePC: FakePC) {
+    fakePC.runVMThread()
 }
 
 #endif

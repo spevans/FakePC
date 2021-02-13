@@ -11,14 +11,16 @@
 
 #if canImport(LinuxCurses)
 import LinuxCurses
+import Glibc
 #endif
 
 #if canImport(DarwinCurses)
 import DarwinCurses
+import Darwin
 #endif
 
 import CInternal
-import Foundation
+
 
 func cursesStartupWith(_ fakePC: FakePC) {
     let kb = fakePC.isa.console.keyboard as! CursesKeyboard
@@ -27,7 +29,7 @@ func cursesStartupWith(_ fakePC: FakePC) {
 }
 
 
-class CursesKeyboard: PS2Device {
+final class CursesKeyboard: PS2Device {
     private weak var controller: I8042?
 
     enum KeyPress {
@@ -260,7 +262,6 @@ class CursesConsole: Console {
     let mouse: PS2Device? = nil
 
     var updateHandler: (() -> ())?
-    let log: FileHandle
 
     init() {
         setlocale(LC_ALL, "")
@@ -272,13 +273,6 @@ class CursesConsole: Console {
         intrflush(stdscr, false)
         keypad(stdscr, true)
         keyboard = CursesKeyboard()
-        let url = URL(fileURLWithPath: "logfile")
-        let fm = FileManager.default
-        if !fm.fileExists(atPath: url.path) {
-            try! Data().write(to: url)
-        }
-        log = try! FileHandle(forWritingTo: url)
-        log.seekToEndOfFile()
     }
 
 
@@ -303,12 +297,5 @@ class CursesConsole: Console {
             }
         }
         refresh()
-    }
-
-
-    func debugLog(_ entry: String) {
-        log.write(Data("DEBUG: ".utf8))
-        log.write(Data(entry.utf8))
-        log.write(Data("\n".utf8))
     }
 }
