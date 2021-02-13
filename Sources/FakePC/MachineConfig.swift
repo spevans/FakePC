@@ -22,6 +22,14 @@ struct MachineConfig {
     private(set) var hd1: Disk? = nil
 
     init<C: Collection>(_ arguments: C) where C.Element == String {
+        func defaultBios() -> URL {
+            if let url = Bundle.module.url(forResource: "bios", withExtension: "bin") {
+                return url
+            } else {
+                fatalError("Cant find bios.bin in Bundle resources")
+            }
+        }
+
         var _biosURL: URL?
         for argument in arguments {
             if argument == "--text" {
@@ -33,7 +41,18 @@ struct MachineConfig {
             if parameters.count == 2, parameters.last != "" {
 
                 switch String(parameters[0]) {
-                    case "--bios": _biosURL = URL(fileURLWithPath: parameters[1], isDirectory: false)
+                    case "--bios":
+                        if parameters[1] == "default" {
+                            _biosURL = defaultBios()
+                        } else if parameters[1] == "seabios" {
+                            guard let url = Bundle.module.url(forResource: "seabios", withExtension: "bin") else {
+                                fatalError("Cannot find seabios.bin in Bundle resources")
+                            }
+                            _biosURL = url
+                        } else {
+                            _biosURL = URL(fileURLWithPath: parameters[1], isDirectory: false)
+                        }
+
                     case "--fd0": fd0 = FDC.parseCommandLineArguments(parameters[1])
                     case "--fd1": fd1 = FDC.parseCommandLineArguments(parameters[1])
                     case "--hd0": hd0 = HDC.parseCommandLineArguments(parameters[1])
@@ -46,9 +65,7 @@ struct MachineConfig {
                 fatalError("Unknown argument: \(argument)")
             }
         }
-        if _biosURL == nil {
-            fatalError("No bios specified")
-        }
-        biosURL = _biosURL!
+        biosURL = _biosURL ?? defaultBios()
+        logger.info("biosURL: \(biosURL)")
     }
 }

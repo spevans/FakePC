@@ -25,7 +25,7 @@ let package = Package(
                 .product(name: "Logging", package: "swift-log")
             ],
             exclude: ["bios"],
-            resources: [ .process("Resources/bios.bin") ]
+            resources: [ .process("Resources") ]
         ),
         .target(
             name: "CInternal",
