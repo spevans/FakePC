@@ -73,19 +73,22 @@ final class ResourceManager {
     }
 
     func ioOut(port: IOPort, dataWrite: VMExit.DataWrite) throws {
-        //        debugLog("IO-OUT: \(String(port, radix: 16)):", dataWrite)
+        logger.trace("IO-OUT: \(String(port, radix: 16)): \(dataWrite)")
         if let hardware = ioPortHandlers[port] {
             try hardware.ioOut(port: port, operation: dataWrite)
+        } else {
+            logger.debug("IO-OUT: No handler for port \(String(port, radix: 16))")
         }
     }
 
 
     func ioIn(port: IOPort, dataRead: VMExit.DataRead) -> VMExit.DataWrite {
-        //      debugLog("IO-IN: \(String(port, radix: 16)):", dataRead)
+        logger.trace("IO-IN: \(String(port, radix: 16)): \(dataRead)")
         if let hardware = ioPortHandlers[port] {
             return hardware.ioIn(port: port, operation: dataRead)
         } else {
-            return VMExit.DataWrite(bitWidth: dataRead.bitWidth, value: 0)!
+            logger.debug("IO-IN: No handler for port \(String(port, radix: 16))")
+            return VMExit.DataWrite(bitWidth: dataRead.bitWidth, value: UInt64.max)!
         }
     }
 }

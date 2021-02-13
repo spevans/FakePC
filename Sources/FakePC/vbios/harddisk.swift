@@ -164,9 +164,9 @@ func biosCallForHardDrive(_ diskFunction: Disk.BIOSFunction, hdc: HDC, drive: In
         }
 
         if status == .invalidCommand {
-            debugLog("HDC: Invalid command: \(diskFunction)")
+            logger.debug("HDC: Invalid command: \(diskFunction)")
         } else if status != .ok {
-            debugLog("HDC: \(diskFunction) returned status \(status)")
+            logger.debug("HDC: \(diskFunction) returned status \(status)")
             showRegisters(vcpu)
         }
         return status

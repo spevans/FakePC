@@ -73,9 +73,9 @@ private func setupDisks(_ isa: ISA) {
             }
         }
     }
-    debugLog("BIOS disk mapping:")
+    logger.debug("BIOS disk mapping:")
     for key in disks.keys.sorted() {
-        debugLog("\(String(key, radix: 16)):", disks[key]!)
+        logger.debug("\(String(key, radix: 16)): \(disks[key]!)")
     }
 }
 
@@ -92,7 +92,7 @@ private func diskCall(function: UInt16, vm: VirtualMachine, isa: ISA) {
             var bda = BDA()
             bda.floppyDriveStatus = status.rawValue
         }
-        debugLog("DISK: function: 0x\(String(function, radix: 16)) drive = \(String(drive, radix: 16))H not implemented")
+        logger.debug("DISK: function: 0x\(String(function, radix: 16)) drive = \(String(drive, radix: 16))H not implemented")
         return
     }
 
@@ -163,7 +163,7 @@ private func diskCall(function: UInt16, vm: VirtualMachine, isa: ISA) {
 
 
     if status != .ok {
-        debugLog("DISK: command \(diskFunction) from drive \(drive) error: \(status)")
+        logger.debug("DISK: command \(diskFunction) from drive \(drive) error: \(status)")
     }
 
     vcpu.registers.ah = status.rawValue
@@ -174,7 +174,7 @@ private func diskCall(function: UInt16, vm: VirtualMachine, isa: ISA) {
 
 
 private func debug(_ ax: UInt16, _ vm: VirtualMachine) {
-    debugLog("BIOS Debug call")
+    logger.debug("BIOS Debug call")
     let bda = BDA()
     showRegisters(vm.vcpus[0])
     let ip = vm.vcpus[0].registers.ip
@@ -184,12 +184,12 @@ private func debug(_ ax: UInt16, _ vm: VirtualMachine) {
 
 
     switch ax {
-        case 0x01: debugLog("Entering IRQ0: bda.timerCount:", bda.timerCount)
-        case 0x02: debugLog("Exiting IRQ0: bda.timerCount:", bda.timerCount)
-        case 0x03: debugLog("Entering INT16")
-        case 0x04: debugLog("Exiting INT16")
-        case 0x05: debugLog("Calling INT19")
-        case 0x06: debugLog("In INT19")
+        case 0x01: logger.debug("Entering IRQ0: bda.timerCount: \(bda.timerCount)")
+        case 0x02: logger.debug("Exiting IRQ0: bda.timerCount: \(bda.timerCount)")
+        case 0x03: logger.debug("Entering INT16")
+        case 0x04: logger.debug("Exiting INT16")
+        case 0x05: logger.debug("Calling INT19")
+        case 0x06: logger.debug("In INT19")
         default: fatalError("Unhandled DEBUG call \(String(ax, radix: 16))")
     }
 }
@@ -201,7 +201,7 @@ private func systemServices(_ ax: UInt16, _ vm: VirtualMachine) {
     let function = UInt8(ax >> 8)
     let vcpu = vm.vcpus[0]
     showRegisters(vcpu)
-    debugLog("SYSTEM: function = 0x\(String(function, radix: 16)) not implemented")
+    logger.debug("SYSTEM: function = 0x\(String(function, radix: 16)) not implemented")
     vcpu.registers.rflags.carry = true
 }
 

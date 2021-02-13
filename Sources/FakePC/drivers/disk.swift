@@ -130,7 +130,7 @@ final class Disk {
         if let geometry = geometry {
             self.geometry = geometry
             guard geometry.capacity == totalSize else {
-                debugLog("Image size != data size")
+                logger.debug("Image size != data size")
                 return nil
             }
         } else {
@@ -193,11 +193,11 @@ final class Disk {
             guard !disk.isReadOnly else { return .writeProtected }
             assert(size == buffer.count)
 
-            debugLog("DISK: Writing \(size) bytes @ offset \(offset)")
+            logger.debug("DISK: Writing \(size) bytes @ offset \(offset)")
             let source = Data(buffer)
             disk.fileHandle.seek(toFileOffset: offset)
             disk.fileHandle.write(source)
-            debugLog("DISK: Wrote \(buffer.count) bytes")
+            logger.debug("DISK: Wrote \(buffer.count) bytes")
             return .ok
         }
     }
@@ -237,11 +237,11 @@ final class Disk {
         let offset = startSector * UInt64(sectorSize)
         let size = sectorCount * geometry.sectorSize
         let zeros = Data(count: size)
-        debugLog("DISK: startSector: \(startSector) sectorSize: \(sectorSize) offset: \(offset)")
-        debugLog("DISK: Formatting track \(track) head: \(head) Writing \(size) bytes @ offset \(offset)")
+        logger.debug("DISK: startSector: \(startSector) sectorSize: \(sectorSize) offset: \(offset)")
+        logger.debug("DISK: Formatting track \(track) head: \(head) Writing \(size) bytes @ offset \(offset)")
         fileHandle.seek(toFileOffset: UInt64(offset))
         fileHandle.write(zeros)
-        debugLog("DISK: Wrote \(zeros.count) bytes")
+        logger.debug("DISK: Wrote \(zeros.count) bytes")
         return .ok
     }
 

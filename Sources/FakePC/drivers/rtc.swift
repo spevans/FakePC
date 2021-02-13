@@ -115,7 +115,7 @@ final class RTC: ISAIOHardware {
                 rtcMinute = UInt8(minute)
                 rtcSecond = UInt8(second)
             }
-            debugLog("Current Date set to:", currentDate ?? "nil")
+            logger.debug("Current Date set to: \(currentDate as Any)")
         }
 
 
@@ -163,7 +163,7 @@ final class RTC: ISAIOHardware {
             if alarmSecond < 0xC0 && alarmSecond != rtcSecond { return }
             if alarmMinute < 0xC0 && alarmMinute != rtcMinute { return }
             if alarmHour < 0xC0 && alarmHour != rtcHour { return }
-            debugLog("RTC Alarm")
+            logger.debug("RTC Alarm")
         }
 
 
@@ -306,7 +306,7 @@ extension RTC {
         let vcpu = vm.vcpus[0]
 
         guard let rtcFunction = BIOSFunction(rawValue: function) else {
-            debugLog("RTC: Invalid function: \(String(function, radix: 16))")
+            logger.debug("RTC: Invalid function: \(String(function, radix: 16))")
             vcpu.registers.rflags.carry = true
             return
         }

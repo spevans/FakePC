@@ -199,7 +199,7 @@ final class PIC: ISAIOHardware {
         precondition(irq >= 0 && irq <= 7)
         let irqBit = UInt8(1 << irq)
         guard (irqBit & interruptMaskRegister) == 0 else {
-            debugLog("IRQ: \(irq) is masked")
+            logger.debug("IRQ: \(irq) is masked")
             // IRQ masked - do nothing
             return
         }
@@ -207,7 +207,7 @@ final class PIC: ISAIOHardware {
         // if this is the
 
         if let lbs = inServiceRegister.lowestBitSet, irq <= lbs {
-            debugLog("current interrupt in service: \(lbs), inServiceRegister=\(inServiceRegister)")
+            logger.debug("current interrupt in service: \(lbs), inServiceRegister=\(inServiceRegister)")
             // There is an IRQ in service at the moment and it is a higher
             // priority than the request irq, so return for now
             return
@@ -300,7 +300,7 @@ final class PIC: ISAIOHardware {
                             case .rotateOnNonSpecificEOI: fallthrough
                             case .setPriorityCommand: fallthrough
                             case .rotateOnSpecificEOI:
-                                debugLog("PIC: Ignoring command: \(ocw2.command)")
+                                logger.debug("PIC: Ignoring command: \(ocw2.command)")
 
                             case .noOperation: break
                         }

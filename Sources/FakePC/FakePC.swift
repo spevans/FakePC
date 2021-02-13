@@ -27,7 +27,7 @@ final class FakePC {
 
     init(config: MachineConfig) throws {
         self.config = config
-        vm = try VirtualMachine()
+        vm = try VirtualMachine(logger: logger)
         rootResourceManager = ResourceManager(portRange: IOPort.min...IOPort.max, irqRange: 0...15)
         let vcpu = try vm.createVCPU(startup: { $0.setupRealMode() })
 
@@ -42,7 +42,7 @@ final class FakePC {
         // Load BIOS Image into top of ROM
         let biosImage = try Data(contentsOf: config.biosURL)
         let loadAddress = biosRomSize - UInt64(biosImage.count)
-        debugLog("BIOS image size 0x\(String(biosImage.count, radix: 16)) load address: 0x\(String(loadAddress, radix: 16))")
+        logger.info("BIOS image size 0x\(String(biosImage.count, radix: 16)) load address: 0x\(String(loadAddress, radix: 16))")
         try biosRegion.loadBinary(from: biosImage, atOffset: loadAddress)
         isa = try ISA(config: config, vm: vm, rootResourceManager: rootResourceManager)
         vcpu.vmExitHandler = processVMExit
@@ -59,9 +59,9 @@ final class FakePC {
                 group.leave()
             }
             vcpu.start()
-            debugLog("Waiting for VCPU to finish")
+            logger.debug("Waiting for VCPU to finish")
             group.wait()
-            debugLog("VCPU has finished")
+            logger.debug("VCPU has finished")
         }
         vmThread.start()
     }
@@ -79,8 +79,8 @@ final class FakePC {
                     try biosCall(fakePC: self, subSystem: port, function: value)
                     break
                 } else {
-                    debugLog("Port: \(String(port, radix: 16)) IP: \(String(ip, radix: 16))")
-                    debugLog("Not a bios call")
+                    logger.debug("Port: \(String(port, radix: 16)) IP: \(String(ip, radix: 16))")
+                    logger.debug("Not a bios call")
                 }
 
             }
@@ -88,7 +88,7 @@ final class FakePC {
 
         case .ioInOperation(let port, let dataRead):
             let data = self.rootResourceManager.ioIn(port: port, dataRead: dataRead)
-            debugLog("ioIn(0x\(String(port, radix: 16)), \(dataRead) => \(data))")
+            logger.debug("ioIn(0x\(String(port, radix: 16)), \(dataRead) => \(data))")
             vcpu.setIn(data: data)
 
         case .memoryViolation(let violation):
@@ -96,7 +96,7 @@ final class FakePC {
                 if violation.guestPhysicalAddress >= PhysicalAddress(UInt(0xf0000))
                 && violation.guestPhysicalAddress <= PhysicalAddress(UInt(0xfffff)) {
                     // Ignore writes to the BIOS
-                    debugLog("Skipping BIOS write: \(violation)")
+                    logger.debug("Skipping BIOS write: \(violation)")
                     try vcpu.skipInstruction()
                 } else {
                     showRegisters(vcpu)
@@ -117,7 +117,7 @@ final class FakePC {
             fatalError("\(vmExit): \(debug)")
 
         case .hlt:
-            debugLog("HLT... exiting")
+            logger.debug("HLT... exiting")
             showRegisters(vcpu)
             return true
 

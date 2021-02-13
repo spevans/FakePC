@@ -119,6 +119,6 @@ final class FDC: ISAIOHardware {
         guard drive < 2 else { throw DiskError.invalidDrive }
         let disk = Self.diskForImage(path: diskPath)
         disks[drive] = disk
-        debugLog("FDC: fd\(drive) \(diskPath): \(disk.geometry)")
+        logger.debug("FDC: fd\(drive) \(diskPath): \(disk.geometry)")
     }
 }

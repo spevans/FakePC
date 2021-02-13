@@ -74,11 +74,11 @@ func biosCallForFloppy(_ diskFunction: Disk.BIOSFunction, fdc: FDC, drive: Int, 
                 return .ok
             }
             let head = Int(vcpu.registers.dh)
-            debugLog("Format track, media geometry = \(geometry)")
-            debugLog("Format head:  \(head) track: \(track): sectorCount: \(sectorCount)")
+            logger.debug("Format track, media geometry = \(geometry)")
+            logger.debug("Format head:  \(head) track: \(track): sectorCount: \(sectorCount)")
             status = disk.formatTrack(track, head: head, sectorCount: sectorCount)
         } else {
-            debugLog("No geometry set for format of drive \(drive)")
+            logger.debug("No geometry set for format of drive \(drive)")
             status = .invalidMedia
         }
 
@@ -155,12 +155,12 @@ func biosCallForFloppy(_ diskFunction: Disk.BIOSFunction, fdc: FDC, drive: Int, 
         case 0x03: geometry = FDC.floppyGeometries[6]  // 1.2M disk in 1.2M dirve
         case 0x04: geometry = FDC.floppyGeometries[8]  // 720 disk in 720K/1.2M dirve
         default:
-            debugLog("FDC: setDiskTypeForFormat no matching format for \(vcpu.registers.al)")
+            logger.debug("FDC: setDiskTypeForFormat no matching format for \(vcpu.registers.al)")
             geometry = nil
         }
 
         if let newGeometry = geometry {
-            debugLog("FDC: Found matching geometry: \(newGeometry)")
+            logger.debug("FDC: Found matching geometry: \(newGeometry)")
             fdc.mediaTypeForFormat[drive] = newGeometry
             status = .ok
         } else {
@@ -171,7 +171,7 @@ func biosCallForFloppy(_ diskFunction: Disk.BIOSFunction, fdc: FDC, drive: Int, 
         // TODO: Determine why DOS tries to format track 80 (ie 81st track) which always fails
         // Where is it getting 81 tracks from?
         let (tracks, sectorsPerTrack) = Disk.trackAndSectorFrom(cx: vcpu.registers.cx)
-        debugLog("FDC: setMediaTypeForFormat: tracks \(tracks) sectorsPerTrack: \(sectorsPerTrack)")
+        logger.debug("FDC: setMediaTypeForFormat: tracks \(tracks) sectorsPerTrack: \(sectorsPerTrack)")
 
         fdc.mediaTypeForFormat[drive] = nil
         for geometry in FDC.floppyGeometries {
@@ -182,10 +182,10 @@ func biosCallForFloppy(_ diskFunction: Disk.BIOSFunction, fdc: FDC, drive: Int, 
             }
         }
         if let newGeometry = fdc.mediaTypeForFormat[drive] {
-            debugLog("FDC: Found matching geometry \(newGeometry)")
+            logger.debug("FDC: Found matching geometry \(newGeometry)")
             status = .ok
         } else {
-            debugLog("FDC: setMediaTypeForFormat: cant find matching geometry")
+            logger.debug("FDC: setMediaTypeForFormat: cant find matching geometry")
             status = .invalidMedia
         }
 
@@ -208,9 +208,9 @@ func biosCallForFloppy(_ diskFunction: Disk.BIOSFunction, fdc: FDC, drive: Int, 
     }
 
     if status == .invalidCommand {
-        debugLog("FDC: Invalid command: \(diskFunction)")
+        logger.debug("FDC: Invalid command: \(diskFunction)")
     } else if status != .ok {
-        debugLog("FD: \(diskFunction) returned status \(status)")
+        logger.debug("FD: \(diskFunction) returned status \(status)")
         showRegisters(vcpu)
     }
     return status

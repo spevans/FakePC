@@ -1,9 +1,15 @@
 import Foundation
 import HypervisorKit
-
+import Logging
 
 
 private var fakePC: FakePC!
+let logger: Logger = {
+    LoggingSystem.bootstrap(StreamLogHandler.standardError)
+    var logger = Logger(label: "org.si.FakePC")
+    logger.logLevel = .error
+    return logger
+}()
 
 
 func debugLog(_ arguments: Any..., separator: String = " ") {
@@ -34,6 +40,8 @@ func hexNum<T: BinaryInteger>(_ value: T, width: Int) -> String {
 
 
 func showRegisters(_ vcpu: VirtualMachine.VCPU) {
+    guard logger.logLevel <= .debug else { return }
+
     var registers = ""
 
     func showReg(_ name: String, _ value: UInt16) {
@@ -47,7 +55,7 @@ func showRegisters(_ vcpu: VirtualMachine.VCPU) {
     showReg("ES", vcpu.registers.es.selector)
     showReg("FS", vcpu.registers.fs.selector)
     showReg("GS", vcpu.registers.gs.selector)
-    debugLog(registers)
+    logger.debug("\(registers)")
     registers = "FLAGS \(vcpu.registers.rflags)"
     showReg("IP", vcpu.registers.ip)
     showReg("AX", vcpu.registers.ax)
@@ -58,13 +66,13 @@ func showRegisters(_ vcpu: VirtualMachine.VCPU) {
     showReg("SI", vcpu.registers.si)
     showReg("BP", vcpu.registers.bp)
     showReg("SP", vcpu.registers.sp)
-    debugLog(registers)
+    logger.debug("\(registers)")
 }
 
 
 func main() {
     let config = MachineConfig(CommandLine.arguments.dropFirst(1))
-    debugLog("Config:", config)
+    logger.debug("Config: \(config)")
 
     do {
         fakePC = try FakePC(config: config)

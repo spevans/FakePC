@@ -14,7 +14,7 @@ import HypervisorKit
 
 func biosCallForCdrom(_ diskFunction: Disk.BIOSFunction, disk: Disk, vm: VirtualMachine) -> Disk.Status {
 
-    debugLog("CDROM: \(diskFunction)")
+    logger.debug("CDROM: \(diskFunction)")
     let vcpu = vm.vcpus[0]
 
         let status: Disk.Status
@@ -77,12 +77,12 @@ func biosCallForCdrom(_ diskFunction: Disk.BIOSFunction, disk: Disk, vm: Virtual
         }
 /*
         if status == .invalidCommand {
-            debugLog("CDROM: Invalid command: \(diskFunction)")
+            logger.debug("CDROM: Invalid command: \(diskFunction)")
         } else if status != .ok {
-            debugLog("CDROM: \(diskFunction) returned status \(status)")
+            logger.debug("CDROM: \(diskFunction) returned status \(status)")
             showRegisters(vcpu)
         }
 */
-        debugLog("CDROM: \(diskFunction) returned status \(status)")
+        logger.debug("CDROM: \(diskFunction) returned status \(status)")
         return status
     }

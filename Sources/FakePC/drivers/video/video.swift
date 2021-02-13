@@ -82,11 +82,11 @@ class Video: ISAIOHardware {
     // BIOS function support. FIXME: Most of these that just access the video memory should be moved
     // in to the ROM BIOS code and directly read/write the video memory at some point
     func setVideo(mode: UInt8) {
-        debugLog("setVideoMode(\(mode))")
+        logger.debug("setVideoMode(\(mode))")
 
         //        let clearScreen = (mode & 0x80) == 0
         guard let newMode = ScreenMode.screenModeFor(mode: Int(mode & 0x3f)) else {
-            debugLog("Unsupported video mode")
+            logger.debug("Unsupported video mode")
             return
         }
 
@@ -299,8 +299,8 @@ extension Video {
 
         let vcpu = vm.vcpus[0]
         guard let videoFunction = BIOSFunction(rawValue: function) else {
-            debugLog("VIDEO: function = 0x\(String(function, radix: 16))")
-            debugLog("Unsupported function: 0x\(String(function, radix: 16))")
+            logger.debug("VIDEO: function = 0x\(String(function, radix: 16))")
+            logger.debug("Unsupported function: 0x\(String(function, radix: 16))")
             return
         }
 
@@ -312,7 +312,7 @@ extension Video {
             case .setTextCursorShape:
                 let cl = vcpu.registers.cl & 0b11111
                 let ch = vcpu.registers.ch & 0b11111
-                debugLog("VIDEO: set cursor shape start: \(ch) end: \(cl)")
+                logger.debug("VIDEO: set cursor shape start: \(ch) end: \(cl)")
                 break
 
             case .scrollUp:
@@ -378,7 +378,7 @@ extension Video {
             }
 
             case .writeString:
-                debugLog("Ignoreing .writeString")
+                logger.debug("Ignoring .writeString")
                 break
             /*            let bl = vcpu.registers.bl
              let bh = vcpu.registers.bh

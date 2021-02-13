@@ -53,7 +53,7 @@ final class ISA {
                 pic2.send(irq: irq - 8)
             }
             else {
-                debugLog("Invalid IRQ: \(irq)")
+                logger.debug("Invalid IRQ: \(irq)")
             }
         }
     }

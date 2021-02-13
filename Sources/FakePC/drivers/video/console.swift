@@ -28,6 +28,6 @@ protocol Console {
 
 extension Console {
     func debugLog(_ entry: String) {
-        print("DEBUG:", entry)
+        logger.debug("\(entry)")
     }
 }

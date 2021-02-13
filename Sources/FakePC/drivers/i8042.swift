@@ -417,7 +417,7 @@ final class I8042: ISAIOHardware {
                 buffer.append(data)
                 result = true
             } else {
-                debugLog("i8042: Buffer full!")
+                logger.debug("i8042: Buffer full!")
             }
             lock.unlock()
             semaphore.signal()
@@ -569,7 +569,7 @@ extension I8042 {
         let vcpu = vm.vcpus[0]
 
         guard let keyboardFunction = BIOSFunction(rawValue: function) else {
-            debugLog("KEYBOARD: AX=0x\(String(ax, radix: 16)) not implemented")
+            logger.debug("KEYBOARD: AX=0x\(String(ax, radix: 16)) not implemented")
             vcpu.registers.rflags.zero = false
             vcpu.registers.rflags.carry = true
             return
@@ -600,7 +600,7 @@ extension I8042 {
                 vcpu.registers.rflags.zero = false
 
             default:
-                debugLog("KEYBOARD: \(keyboardFunction) not implemented")
+                logger.debug("KEYBOARD: \(keyboardFunction) not implemented")
                 vcpu.registers.rflags.zero = false
                 vcpu.registers.rflags.carry = true
         }

@@ -229,7 +229,7 @@ class CursesKeyboard: PS2Device {
             }
             guard let keyPress = scanCodes2[ch] else {
                 let s = String(UnicodeScalar(UInt32(ch)) ?? UnicodeScalar(32))
-                debugLog("Unknown key: \(String(ch, radix: 16)): \(s)")
+                logger.debug("Unknown key: \(String(ch, radix: 16)): \(s)")
                 continue
             }
 
