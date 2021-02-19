@@ -359,7 +359,7 @@ extension Video {
             case .paletteRegisterControl: fallthrough
 
             case .characterGeneratorControl:
-                showRegisters(vcpu)
+                vcpu.showRegisters()
                 fatalError("\(videoFunction): not implemented")
 
             case .videoSubsystemControl:

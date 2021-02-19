@@ -176,7 +176,7 @@ private func diskCall(function: UInt16, vm: VirtualMachine, isa: ISA) {
 private func debug(_ ax: UInt16, _ vm: VirtualMachine) {
     logger.debug("BIOS Debug call")
     let bda = BDA()
-    showRegisters(vm.vcpus[0])
+    vm.vcpus[0].showRegisters()
     let ip = vm.vcpus[0].registers.ip
     if ip >= 0xf30a && ip <= 0xf340 {
         return
@@ -200,7 +200,7 @@ private func debug(_ ax: UInt16, _ vm: VirtualMachine) {
 private func systemServices(_ ax: UInt16, _ vm: VirtualMachine) {
     let function = UInt8(ax >> 8)
     let vcpu = vm.vcpus[0]
-    showRegisters(vcpu)
+    vcpu.showRegisters()
     logger.debug("SYSTEM: function = 0x\(String(function, radix: 16)) not implemented")
     vcpu.registers.rflags.carry = true
 }

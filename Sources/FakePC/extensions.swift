@@ -60,3 +60,12 @@ extension UInt8 {
         return (hi << 4) | lo
     }
 }
+
+
+func hexNum<T: BinaryInteger>(_ value: T, width: Int) -> String {
+    let num = String(value, radix: 16)
+    if num.count <= width {
+        return String(repeating: "0", count: width - num.count) + num
+    }
+    return num
+}

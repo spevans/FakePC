@@ -400,7 +400,7 @@ extension Disk {
             count: UInt64(sectorOperation.bufferSize)) else { return .dmaOver64KBoundary }
         let buffer = UnsafeRawBufferPointer(start: ptr, count: sectorOperation.bufferSize)
         if sectorOperation.startSector == 0 {
-            debugLog(vcpu.vm.memoryRegions[0].dumpMemory(at: Int(sectorOperation.bufferOffset), count: 512))
+            logger.debug("\(vcpu.vm.memoryRegions[0].dumpMemory(at: Int(sectorOperation.bufferOffset), count: 512))")
         }
         let status = sectorOperation.writeSectors(from: buffer)
         if status != .ok {

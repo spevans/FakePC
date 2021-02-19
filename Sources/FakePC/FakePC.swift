@@ -99,35 +99,67 @@ final class FakePC {
                     logger.debug("Skipping BIOS write: \(violation)")
                     try vcpu.skipInstruction()
                 } else {
-                    showRegisters(vcpu)
+                    vcpu.showRegisters()
                     fatalError("memory violation")
                 }
             }
             break
 
         case .exception(let exceptionInfo):
-            showRegisters(vcpu)
+            vcpu.showRegisters()
             let offset = Int(vcpu.registers.cs.base) + Int(vcpu.registers.ip)
-            debugLog(vcpu.vm.memoryRegions[0].dumpMemory(at: offset, count: 16))
-
+            logger.debug("\(vcpu.vm.memoryRegions[0].dumpMemory(at: offset, count: 16))")
             fatalError("\(vmExit): \(exceptionInfo)")
 
         case .debug(let debug):
-            showRegisters(vcpu)
+            vcpu.showRegisters()
             fatalError("\(vmExit): \(debug)")
 
         case .hlt:
             logger.debug("HLT... exiting")
-            showRegisters(vcpu)
+            vcpu.showRegisters()
             return true
 
 
         default:
-            debugLog(vmExit)
-            showRegisters(vcpu)
+            logger.debug("\(vmExit)")
+            vcpu.showRegisters()
             fatalError("Unhandled exit: \(vmExit)")
         }
         self.isa.processHardware()
         return false
+    }
+}
+
+
+extension VirtualMachine.VCPU {
+    func showRegisters() {
+        guard logger.logLevel <= .debug else { return }
+
+        var registers = ""
+
+        func showReg(_ name: String, _ value: UInt16) {
+            let w = hexNum(value, width: 4)
+            registers += "\(name): \(w) "
+        }
+
+        showReg("CS", self.registers.cs.selector)
+        showReg("SS", self.registers.ss.selector)
+        showReg("DS", self.registers.ds.selector)
+        showReg("ES", self.registers.es.selector)
+        showReg("FS", self.registers.fs.selector)
+        showReg("GS", self.registers.gs.selector)
+        logger.debug("\(registers)")
+        registers = "FLAGS \(self.registers.rflags)"
+        showReg("IP", self.registers.ip)
+        showReg("AX", self.registers.ax)
+        showReg("BX", self.registers.bx)
+        showReg("CX", self.registers.cx)
+        showReg("DX", self.registers.dx)
+        showReg("DI", self.registers.di)
+        showReg("SI", self.registers.si)
+        showReg("BP", self.registers.bp)
+        showReg("SP", self.registers.sp)
+        logger.debug("\(registers)")
     }
 }

@@ -65,7 +65,7 @@ func biosCallForFloppy(_ diskFunction: Disk.BIOSFunction, fdc: FDC, drive: Int, 
         }
 
     case .formatTrack:
-        showRegisters(vcpu)
+        vcpu.showRegisters()
 
         if let geometry = fdc.mediaTypeForFormat[drive] {
             let sectorCount = Int(vcpu.registers.al)
@@ -132,7 +132,7 @@ func biosCallForFloppy(_ diskFunction: Disk.BIOSFunction, fdc: FDC, drive: Int, 
         status = .invalidCommand
 
     case .getDiskType:
-        showRegisters(vcpu)
+        vcpu.showRegisters()
         fatalError("FDC: readDASDType should have been handled earlier")
 
     case .changeOfDiskStatus:
@@ -145,7 +145,7 @@ func biosCallForFloppy(_ diskFunction: Disk.BIOSFunction, fdc: FDC, drive: Int, 
         fdc.mediaChanged[drive] = false    // Reset changeline
 
     case .setDiskTypeForFormat:
-        showRegisters(vcpu)
+        vcpu.showRegisters()
         fdc.diskTypeForFormat[drive] = vcpu.registers.al
         let geometry: Disk.Geometry?
         switch vcpu.registers.al {
@@ -211,7 +211,7 @@ func biosCallForFloppy(_ diskFunction: Disk.BIOSFunction, fdc: FDC, drive: Int, 
         logger.debug("FDC: Invalid command: \(diskFunction)")
     } else if status != .ok {
         logger.debug("FD: \(diskFunction) returned status \(status)")
-        showRegisters(vcpu)
+        vcpu.showRegisters()
     }
     return status
 }

@@ -80,7 +80,7 @@ func biosCallForCdrom(_ diskFunction: Disk.BIOSFunction, disk: Disk, vm: Virtual
             logger.debug("CDROM: Invalid command: \(diskFunction)")
         } else if status != .ok {
             logger.debug("CDROM: \(diskFunction) returned status \(status)")
-            showRegisters(vcpu)
+            vcpu.showRegisters()
         }
 */
         logger.debug("CDROM: \(diskFunction) returned status \(status)")
