@@ -10,8 +10,8 @@
 #define NCURSES_WIDECHAR 1
 #define NCURSES_NOMACROS
 
-#ifndef cinternal_h
-#define cinternal_h
+#ifndef _CFAKEPC_H
+#define _CFAKEPC_H
 
 
 #import <curses.h>
@@ -51,4 +51,4 @@ int writeCharAtRowColumn(int row, int column, uint8_t ch) {
     return mvadd_wch(row, column, &codepage437_characters[ch]);
 }
 
-#endif /* cinternal_h */
+#endif /* _CFAKEPC_H */

@@ -21,8 +21,8 @@ let package = Package(
         .target(
             name: "FakePC",
             dependencies: [
+                "CFakePC",
                 "HypervisorKit",
-                "CInternal",
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "Logging", package: "swift-log")
             ],
@@ -30,7 +30,7 @@ let package = Package(
             resources: [ .process("Resources") ]
         ),
         .target(
-            name: "CInternal",
+            name: "CFakePC",
             dependencies:[]
         ),
         .testTarget(

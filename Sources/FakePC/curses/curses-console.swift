@@ -19,7 +19,7 @@ import DarwinCurses
 import Darwin
 #endif
 
-import CInternal
+import CFakePC
 
 
 func cursesStartupWith(_ fakePC: FakePC) {

@@ -1,6 +1,6 @@
 // 8x16 Codepage 437 font
 
-#include "CInternal.h"
+#include "CFakePC.h"
 
 #define FONTDATAMAX 4096
 

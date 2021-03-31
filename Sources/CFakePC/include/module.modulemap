@@ -1,5 +1,5 @@
-module CInternal [system] {
-    umbrella header "CInternal.h"
+module CFakePC [system] {
+    umbrella header "CFakePC.h"
     export *
 }
 

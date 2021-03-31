@@ -9,7 +9,7 @@
 //
 
 import HypervisorKit
-import CInternal
+import CFakePC
 import Foundation
 
 #if canImport(Glibc)

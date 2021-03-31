@@ -6,7 +6,7 @@
 //  Copyright © 2020 Simon Evans. All rights reserved.
 //
 
-#include "CInternal.h"
+#include "CFakePC.h"
 
 
 const cchar_t codepage437_characters[256] = {
