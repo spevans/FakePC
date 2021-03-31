@@ -132,10 +132,7 @@ extension Serial {
     }
 
 
-    func biosCall(_ ax: UInt16, _ vm: VirtualMachine) {
-        let function = UInt8(ax >> 8)
-        let vcpu = vm.vcpus[0]
-
+    func biosCall(function: UInt8, registers: VirtualMachine.VCPU.Registers, _ vm: VirtualMachine) {
         guard let serialFunction = BIOSFunction(rawValue: function) else {
             fatalError("SERIAL: unknown function 0x\(String(function, radix: 16))")
         }
@@ -148,6 +145,6 @@ extension Serial {
             case .extendedInitialise:   fallthrough
             case .extendedPortControl:  logger.debug("SERIAL: \(serialFunction) not implemented")
         }
-        vcpu.registers.rflags.carry = true
+        registers.rflags.carry = true
     }
 }

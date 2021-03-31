@@ -379,11 +379,12 @@ extension Disk {
 
 
     func extendedRead(vcpu: VirtualMachine.VCPU) -> Status {
+        let vm = fakePC.vm
         let offset = UInt(vcpu.registers.ds.base) + UInt(vcpu.registers.si)
-        guard let dap = try? vcpu.vm.memory(at: PhysicalAddress(offset), count: 16) else { return .invalidCommand }
+        guard let dap = try? vm.memory(at: PhysicalAddress(offset), count: 16) else { return .invalidCommand }
 
         guard let sectorOperation = diskAccessPacket(UnsafeRawPointer(dap)) else { return .invalidCommand }
-        guard let ptr = try? vcpu.vm.memory(at: PhysicalAddress(UInt(sectorOperation.bufferOffset)),
+        guard let ptr = try? vm.memory(at: PhysicalAddress(UInt(sectorOperation.bufferOffset)),
             count: UInt64(sectorOperation.bufferSize)) else { return .dmaOver64KBoundary }
         let buffer = UnsafeMutableRawBufferPointer(start: ptr, count: sectorOperation.bufferSize)
         return sectorOperation.readSectors(into: buffer)
@@ -391,16 +392,17 @@ extension Disk {
 
 
     func extendedWrite(vcpu: VirtualMachine.VCPU) -> Status {
+        let vm = fakePC.vm
         let offset = UInt(vcpu.registers.ds.base) + UInt(vcpu.registers.si)
-        guard let dap = try? vcpu.vm.memory(at: PhysicalAddress(offset), count: 16) else { return .invalidCommand }
+        guard let dap = try? vm.memory(at: PhysicalAddress(offset), count: 16) else { return .invalidCommand }
         guard let sectorOperation = diskAccessPacket(UnsafeRawPointer(dap)) else { return .invalidCommand }
         guard !sectorOperation.disk.isReadOnly else { return .writeProtected }
 
-        guard let ptr = try? vcpu.vm.memory(at: PhysicalAddress(UInt(sectorOperation.bufferOffset)),
+        guard let ptr = try? vm.memory(at: PhysicalAddress(UInt(sectorOperation.bufferOffset)),
             count: UInt64(sectorOperation.bufferSize)) else { return .dmaOver64KBoundary }
         let buffer = UnsafeRawBufferPointer(start: ptr, count: sectorOperation.bufferSize)
         if sectorOperation.startSector == 0 {
-            logger.debug("\(vcpu.vm.memoryRegions[0].dumpMemory(at: Int(sectorOperation.bufferOffset), count: 512))")
+            logger.debug("\(vm.memoryRegions[0].dumpMemory(at: Int(sectorOperation.bufferOffset), count: 512))")
         }
         let status = sectorOperation.writeSectors(from: buffer)
         if status != .ok {
@@ -414,10 +416,11 @@ extension Disk {
 
 
     func extendedVerify(vcpu: VirtualMachine.VCPU) -> Status {
+        let vm = fakePC.vm
         let offset = UInt(vcpu.registers.ds.base) + UInt(vcpu.registers.si)
-        guard let dap = try? vcpu.vm.memory(at: PhysicalAddress(offset), count: 16) else { return .invalidCommand }
+        guard let dap = try? vm.memory(at: PhysicalAddress(offset), count: 16) else { return .invalidCommand }
         guard let sectorOperation = diskAccessPacket(UnsafeRawPointer(dap)) else { return .invalidCommand }
-        guard let ptr = try? vcpu.vm.memory(at: PhysicalAddress(UInt(sectorOperation.bufferOffset)),
+        guard let ptr = try? vm.memory(at: PhysicalAddress(UInt(sectorOperation.bufferOffset)),
             count: UInt64(sectorOperation.bufferSize)) else { return .dmaOver64KBoundary }
         let buffer = UnsafeRawBufferPointer(start: ptr, count: sectorOperation.bufferSize)
         let status = sectorOperation.verifySectors(using: buffer)
@@ -453,10 +456,11 @@ extension Disk {
 
 
     func extendedGetDriveParameters(vcpu: VirtualMachine.VCPU) -> Status {
+        let vm = fakePC.vm
         let offset = UInt(vcpu.registers.ds.base) + UInt(vcpu.registers.si)
         let parameterBuffer: UnsafeMutableRawPointer
         do {
-            parameterBuffer = try vcpu.vm.memory(at: PhysicalAddress(offset), count: 16)
+            parameterBuffer = try vm.memory(at: PhysicalAddress(offset), count: 16)
         } catch {
             return .invalidCommand
         }

@@ -13,28 +13,51 @@ import HypervisorKit
 
 
 // The BIOS ROM can make calls using OUT port, AX where port is 0xE0 to 0xEF
-func biosCall(fakePC: FakePC, subSystem: IOPort, function: UInt16) throws {
+func biosCall(fakePC: FakePC, subSystem: IOPort, function: UInt8) throws {
     let vm = fakePC.vm
     let isa = fakePC.isa
     let vcpu = vm.vcpus[0]
+    let registers = try vcpu.readRegisters([.rax, .rbx, .rcx, .rdx, .rflags, .segmentRegisters])
+
+    logger.debug("biosCall, subSystem: \(String(subSystem, radix: 16)), function: \(String(function, radix: 16))")
+    func debug() {
+        logger.debug("BIOS Debug call")
+        let bda = BDA()
+        vcpu.showRegisters()
+        let ip = registers.ip
+        if ip >= 0xf30a && ip <= 0xf340 {
+            return
+        }
+
+        let ax = registers.ax
+        switch ax {
+            case 0x01: logger.debug("Entering IRQ0: bda.timerCount: \(bda.timerCount)")
+            case 0x02: logger.debug("Exiting IRQ0: bda.timerCount: \(bda.timerCount)")
+            case 0x03: logger.debug("Entering INT16")
+            case 0x04: logger.debug("Exiting INT16")
+            case 0x05: logger.debug("Calling INT19")
+            case 0x06: logger.debug("In INT19")
+            default: fatalError("Unhandled DEBUG call \(String(ax, radix: 16))")
+        }
+    }
+
 
     // Set default return error flag
-    vcpu.registers.rflags.carry = true
+    registers.rflags.carry = true
 
     switch subSystem {
-        case 0xE0: isa.video.biosCall(function, vm)
-    case 0xE1: diskCall(function: function, vm: vm, isa: isa)
-        case 0xE2: if let serial = isa.serialPort(Int(vcpu.registers.dx)) { serial.biosCall(function, vm) }
-        case 0xE3: systemServices(function, vm)
-        case 0xE4: isa.keyboardController.biosCall(function, vm)
-        case 0xE5: if let printer = isa.printerPort(Int(vcpu.registers.dx)) { printer.biosCall(function, vm) }
-
+        case 0xE0: isa.video.biosCall(function: function, registers: registers, vm)
+        case 0xE1: diskCall(function: function, vm: vm, isa: isa)
+        case 0xE2: if let serial = isa.serialPort(Int(registers.dx)) { serial.biosCall(function: function, registers: registers, vm) }
+        case 0xE3: systemServices(function: function, registers: registers, vm)
+        case 0xE4: isa.keyboardController.biosCall(function: function, registers: registers, vm)
+        case 0xE5: if let printer = isa.printerPort(Int(registers.dx)) { printer.biosCall(function: function, registers: registers, vm) }
         case 0xE6:
             setupDisks(isa)
             try setupBDA(fakePC: fakePC) // setup BIOS Data Area
 
-        case 0xE8: isa.rtc.biosCall(function, vm)
-        case 0xEF: debug(function, vm)
+        case 0xE8: isa.rtc.biosCall(function: function, registers: registers, vm)
+        case 0xEF: debug()
         default: fatalError("Unhandled BIOS call (0x\(String(subSystem, radix: 16)),0x\(String(function, radix: 16)))")
     }
 }
@@ -80,14 +103,14 @@ private func setupDisks(_ isa: ISA) {
 }
 
 
-private func diskCall(function: UInt16, vm: VirtualMachine, isa: ISA) {
-    let vcpu = vm.vcpus[0]
-    let drive = vcpu.registers.dl
+private func diskCall(function: UInt8, vm: VirtualMachine, isa: ISA) {
+    let registers = vm.vcpus[0].registers
+    let drive = registers.dl
 
-    guard let diskFunction = Disk.BIOSFunction(rawValue: UInt8(function >> 8)) else {
+    guard let diskFunction = Disk.BIOSFunction(rawValue: function) else {
         let status = Disk.Status.invalidCommand
-        vcpu.registers.ah = status.rawValue
-        vcpu.registers.rflags.carry = true
+        registers.ah = status.rawValue
+        registers.rflags.carry = true
         if drive < 0x80 {
             var bda = BDA()
             bda.floppyDriveStatus = status.rawValue
@@ -107,12 +130,12 @@ private func diskCall(function: UInt16, vm: VirtualMachine, isa: ISA) {
             let disk = fdc.disks[channel]
             if diskFunction == .getDiskType {
                 if disk != nil {
-                    vcpu.registers.ah = 1   // Floppy without changeline support FIXME
+                    registers.ah = 1   // Floppy without changeline support FIXME
                 } else {
-                    vcpu.registers.ah = 0   // No such drive
+                    registers.ah = 0   // No such drive
                 }
                 status = .ok
-                vcpu.registers.rflags.carry = false
+                registers.rflags.carry = false
                 return
             } else {
                 if disk != nil {
@@ -128,15 +151,15 @@ private func diskCall(function: UInt16, vm: VirtualMachine, isa: ISA) {
             let disk = hdc.disks[channel]
             if diskFunction == .getDiskType {
                 if let disk = disk, disk.isHardDisk {
-                    vcpu.registers.ah = 3   // Hard Drive
+                    registers.ah = 3   // Hard Drive
                     let sectors = disk.geometry.totalSectors
-                    vcpu.registers.cx = UInt16(sectors >> 16)
-                    vcpu.registers.dx = UInt16(truncatingIfNeeded: sectors)
+                    registers.cx = UInt16(sectors >> 16)
+                    registers.dx = UInt16(truncatingIfNeeded: sectors)
                 } else {
-                    vcpu.registers.ah = 0   // No such drive - includes cdroms
+                    registers.ah = 0   // No such drive - includes cdroms
                 }
                 status = .ok
-                vcpu.registers.rflags.carry = false
+                registers.rflags.carry = false
                 return
             } else {
                 if let disk = disk {
@@ -166,42 +189,18 @@ private func diskCall(function: UInt16, vm: VirtualMachine, isa: ISA) {
         logger.debug("DISK: command \(diskFunction) from drive \(drive) error: \(status)")
     }
 
-    vcpu.registers.ah = status.rawValue
-    vcpu.registers.rflags.carry = (status != .ok)
+    registers.ah = status.rawValue
+    registers.rflags.carry = (status != .ok)
 }
 
-
-
-
-private func debug(_ ax: UInt16, _ vm: VirtualMachine) {
-    logger.debug("BIOS Debug call")
-    let bda = BDA()
-    vm.vcpus[0].showRegisters()
-    let ip = vm.vcpus[0].registers.ip
-    if ip >= 0xf30a && ip <= 0xf340 {
-        return
-    }
-
-
-    switch ax {
-        case 0x01: logger.debug("Entering IRQ0: bda.timerCount: \(bda.timerCount)")
-        case 0x02: logger.debug("Exiting IRQ0: bda.timerCount: \(bda.timerCount)")
-        case 0x03: logger.debug("Entering INT16")
-        case 0x04: logger.debug("Exiting INT16")
-        case 0x05: logger.debug("Calling INT19")
-        case 0x06: logger.debug("In INT19")
-        default: fatalError("Unhandled DEBUG call \(String(ax, radix: 16))")
-    }
-}
 
 
 
 // INT 0x15
-private func systemServices(_ ax: UInt16, _ vm: VirtualMachine) {
-    let function = UInt8(ax >> 8)
+private func systemServices(function: UInt8, registers: VirtualMachine.VCPU.Registers, _ vm: VirtualMachine) {
     let vcpu = vm.vcpus[0]
     vcpu.showRegisters()
     logger.debug("SYSTEM: function = 0x\(String(function, radix: 16)) not implemented")
-    vcpu.registers.rflags.carry = true
+    registers.rflags.carry = true
 }
 

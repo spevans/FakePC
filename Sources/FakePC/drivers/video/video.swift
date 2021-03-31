@@ -291,9 +291,8 @@ extension Video {
     }
 
 
-    func biosCall(_ ax: UInt16, _ vm: VirtualMachine) {
-        let function = UInt8(ax >> 8)
-        let al = UInt8(truncatingIfNeeded: ax)
+    func biosCall(function: UInt8, registers: VirtualMachine.VCPU.Registers, _ vm: VirtualMachine) {
+        let al = registers.al
 
         let vcpu = vm.vcpus[0]
         guard let videoFunction = BIOSFunction(rawValue: function) else {
@@ -308,42 +307,42 @@ extension Video {
                 setVideo(mode: al)
 
             case .setTextCursorShape:
-                let cl = vcpu.registers.cl & 0b11111
-                let ch = vcpu.registers.ch & 0b11111
+                let cl = registers.cl & 0b11111
+                let ch = registers.ch & 0b11111
                 logger.debug("VIDEO: set cursor shape start: \(ch) end: \(cl)")
                 break
 
             case .scrollUp:
-                let bh = vcpu.registers.bh
-                let cl = vcpu.registers.cl
-                let ch = vcpu.registers.ch
-                let dl = vcpu.registers.dl
-                let dh = vcpu.registers.dh
+                let bh = registers.bh
+                let cl = registers.cl
+                let ch = registers.ch
+                let dl = registers.dl
+                let dh = registers.dh
                 scrollUp(lines: al, color: bh, startRow: ch, startColumn: cl, endRow: dh, endColumn: dl)
 
             case .scrollDown:
-                let bh = vcpu.registers.bh
-                let cl = vcpu.registers.cl
-                let ch = vcpu.registers.ch
-                let dl = vcpu.registers.dl
-                let dh = vcpu.registers.dh
+                let bh = registers.bh
+                let cl = registers.cl
+                let ch = registers.ch
+                let dl = registers.dl
+                let dh = registers.dh
                 scrollDown(lines: al, color: bh, startRow: ch, startColumn: cl, endRow: dh, endColumn: dl)
 
             case .readCharacterAndColorAtCursor:
-                let (color, character) = readCharacterAndColorAtCursor(page: vcpu.registers.bh)
-                vcpu.registers.ah = color
-                vcpu.registers.al = character
+                let (color, character) = readCharacterAndColorAtCursor(page: registers.bh)
+                registers.ah = color
+                registers.al = character
 
             case .writeCharacterAndColorAtCursor:
-                let bl = vcpu.registers.bl
-                let bh = vcpu.registers.bh
-                let cx = vcpu.registers.cx
+                let bl = registers.bl
+                let bh = registers.bh
+                let cx = registers.cx
                 writeCharacterAndColorAtCursor(character: al, page: bh, color: bl, count: cx)
 
             case .writeCharacterAtCursor:
-                let bh = vcpu.registers.bh
-                let cx = vcpu.registers.cx
-                let color = screenMode.isTextMode ? 0x7 : vcpu.registers.bl
+                let bh = registers.bh
+                let cx = registers.cx
+                let color = screenMode.isTextMode ? 0x7 : registers.bl
                 writeCharacterAndColorAtCursor(character: al, page: bh, color: color, count: cx)
 
             case .setColorOrPalette: fallthrough
@@ -352,8 +351,8 @@ extension Video {
                 fatalError("\(videoFunction): not implemented")
 
             case .ttyOutput:
-                let bl = vcpu.registers.bl
-                let bh = vcpu.registers.bh
+                let bl = registers.bl
+                let bh = registers.bh
                 ttyOutput(character: al, page: bh, color: bl)
 
             case .paletteRegisterControl: fallthrough
@@ -363,13 +362,13 @@ extension Video {
                 fatalError("\(videoFunction): not implemented")
 
             case .videoSubsystemControl:
-                let bl = vcpu.registers.bl
+                let bl = registers.bl
                 switch bl {
                     case 0x10:
-                        vcpu.registers.bh = screenMode.isColor ? 0 : 1
-                        vcpu.registers.bl = 3 // 256k
-                        vcpu.registers.ch = 0 // feature bits
-                        vcpu.registers.cl = 0 //
+                        registers.bh = screenMode.isColor ? 0 : 1
+                        registers.bl = 3 // 256k
+                        registers.ch = 0 // feature bits
+                        registers.cl = 0 //
 
                     default:
                         fatalError("\(videoFunction): not implemented")
@@ -378,13 +377,13 @@ extension Video {
             case .writeString:
                 logger.debug("Ignoring .writeString")
                 break
-            /*            let bl = vcpu.registers.bl
-             let bh = vcpu.registers.bh
-             let cx = vcpu.registers.cx
-             let dh = vcpu.registers.dh
-             let dl = vcpu.registers.dl
-             let es = vcpu.registers.es
-             let bp = vcpu.registers.bp
+            /*            let bl = registers.bl
+             let bh = registers.bh
+             let cx = registers.cx
+             let dh = registers.dh
+             let dl = registers.dl
+             let es = registers.es
+             let bp = registers.bp
              let stringAddress = PhysicalAddress(es.base << 4 + UInt(bp))
 
              let rawPtr = try! vm.memory(at: stringAddress, count: UInt64(cx))

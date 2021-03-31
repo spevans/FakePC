@@ -28,10 +28,7 @@ extension Printer {
     }
 
 
-    func biosCall(_ ax: UInt16, _ vm: VirtualMachine) {
-        let function = UInt8(ax >> 8)
-        let vcpu = vm.vcpus[0]
-
+    func biosCall(function: UInt8, registers: VirtualMachine.VCPU.Registers, _ vm: VirtualMachine) {
         guard let printerFunction = BIOSFunction(rawValue: function) else {
             fatalError("PRINTER: unknown function 0x\(String(function, radix: 16))")
         }
@@ -39,7 +36,7 @@ extension Printer {
         let status: UInt8
         switch printerFunction {
             case .printCharacter:
-                let char = UnicodeScalar(vcpu.registers.al)
+                let char = UnicodeScalar(registers.al)
                 logger.debug("PRINTER: \(char)")
                 status = 0b1100_0000
 
@@ -52,7 +49,7 @@ extension Printer {
                 status = 0b1100_0000
         }
 
-        vcpu.registers.ah = status
-        vcpu.registers.rflags.carry = false
+        registers.ah = status
+        registers.rflags.carry = false
     }
 }

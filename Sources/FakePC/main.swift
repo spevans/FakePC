@@ -13,6 +13,9 @@ import ArgumentParser
 import Foundation
 
 
+// The singleton object representing the PC
+private(set) internal var fakePC: FakePC!
+
 private(set) var logger: Logger = {
     LoggingSystem.bootstrap(StreamLogHandler.standardError)
     var logger = Logger(label: "FakePC")
@@ -107,7 +110,7 @@ struct FakePCCommand: ParsableCommand {
         logger.debug("Config: \(config)")
 
         do {
-            let fakePC = try FakePC(config: config)
+            fakePC = try FakePC(config: config)
             if config.textMode {
                 cursesStartupWith(fakePC)
             } else {

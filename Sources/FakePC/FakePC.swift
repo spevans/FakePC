@@ -30,7 +30,7 @@ final class FakePC {
         self.config = config
         vm = try VirtualMachine(logger: logger)
         rootResourceManager = ResourceManager(portRange: IOPort.min...IOPort.max, irqRange: 0...15)
-        let vcpu = try vm.createVCPU(startup: { $0.setupRealMode() })
+        let vcpu = try vm.addVCPU()
 
         // Currently only KVM will emulate an PIC and PIT, HVF will not. The PIC/PIT code needs to be added into
         // HypervisorKit then it can be enabled there for HVF and the KVM one used on Linux.
@@ -59,7 +59,7 @@ final class FakePC {
             vcpu.completionHandler = {
                 group.leave()
             }
-            vcpu.start()
+            try! vcpu.start()
             logger.debug("Waiting for VCPU to finish")
             group.wait()
             logger.debug("VCPU has finished")
@@ -74,10 +74,12 @@ final class FakePC {
         switch vmExit {
         case .ioOutOperation(let port, let data):
             if case VMExit.DataWrite.word(let value) = data {
-                let ip = UInt64(vcpu.registers.cs.base) + vcpu.registers.rip
+                let registers = try vcpu.readRegisters([.rip, .cs])
+                let ip = UInt64(registers.cs.base) + registers.rip
                 // Is call from BIOS?
                 if (port >= 0xE0 && port <= 0xEF) && (ip >= 0xFE000 && ip <= 0xFFFFF) {
-                    try biosCall(fakePC: self, subSystem: port, function: value)
+                    // function = AH
+                    try biosCall(fakePC: self, subSystem: port, function: UInt8(value >> 8))
                     break
                 } else {
                     logger.debug("Port: \(String(port, radix: 16)) IP: \(String(ip, radix: 16))")
@@ -107,9 +109,10 @@ final class FakePC {
             break
 
         case .exception(let exceptionInfo):
+            let registers = try vcpu.readRegisters([.rip, .cs])
             vcpu.showRegisters()
-            let offset = Int(vcpu.registers.cs.base) + Int(vcpu.registers.ip)
-            logger.debug("\(vcpu.vm.memoryRegions[0].dumpMemory(at: offset, count: 16))")
+            let offset = Int(registers.cs.base) + Int(registers.ip)
+            logger.debug("\(vm.memoryRegions[0].dumpMemory(at: offset, count: 16))")
             fatalError("\(vmExit): \(exceptionInfo)")
 
         case .debug(let debug):
@@ -120,7 +123,6 @@ final class FakePC {
             logger.debug("HLT... exiting")
             vcpu.showRegisters()
             return true
-
 
         default:
             logger.debug("\(vmExit)")
@@ -137,30 +139,38 @@ extension VirtualMachine.VCPU {
     func showRegisters() {
         guard logger.logLevel <= .debug else { return }
 
-        var registers = ""
-
-        func showReg(_ name: String, _ value: UInt16) {
-            let w = hexNum(value, width: 4)
-            registers += "\(name): \(w) "
+        let registers: Registers
+        do {
+            registers = try self.readRegisters([.rax, .rbx, .rcx, .rdx, .rdi, .rsi, .rbp, .rsp, .rip, .segmentRegisters, .rflags])
+        } catch {
+            logger.error("Cannot read registers: \(error)")
+            return
         }
 
-        showReg("CS", self.registers.cs.selector)
-        showReg("SS", self.registers.ss.selector)
-        showReg("DS", self.registers.ds.selector)
-        showReg("ES", self.registers.es.selector)
-        showReg("FS", self.registers.fs.selector)
-        showReg("GS", self.registers.gs.selector)
-        logger.debug("\(registers)")
-        registers = "FLAGS \(self.registers.rflags)"
-        showReg("IP", self.registers.ip)
-        showReg("AX", self.registers.ax)
-        showReg("BX", self.registers.bx)
-        showReg("CX", self.registers.cx)
-        showReg("DX", self.registers.dx)
-        showReg("DI", self.registers.di)
-        showReg("SI", self.registers.si)
-        showReg("BP", self.registers.bp)
-        showReg("SP", self.registers.sp)
-        logger.debug("\(registers)")
+        var output = ""
+
+        func showReg(_ name: String, _ value: UInt16) {
+            let w = hexNum(value)
+            output += "\(name): \(w) "
+        }
+
+        showReg("CS", registers.cs.selector)
+        showReg("SS", registers.ss.selector)
+        showReg("DS", registers.ds.selector)
+        showReg("ES", registers.es.selector)
+        showReg("FS", registers.fs.selector)
+        showReg("GS", registers.gs.selector)
+        logger.debug("\(output)")
+        output = "FLAGS \(registers.rflags)"
+        showReg("IP", registers.ip)
+        showReg("AX", registers.ax)
+        showReg("BX", registers.bx)
+        showReg("CX", registers.cx)
+        showReg("DX", registers.dx)
+        showReg("DI", registers.di)
+        showReg("SI", registers.si)
+        showReg("BP", registers.bp)
+        showReg("SP", registers.sp)
+        logger.debug("\(output)")
     }
 }

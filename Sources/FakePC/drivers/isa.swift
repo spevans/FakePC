@@ -18,7 +18,7 @@ protocol ISAIOHardware {
     func process()
 
     // Some ISA hardware implements BIOS functionality
-    func biosCall(_ ax: UInt16, _ vm: VirtualMachine)
+    func biosCall(function: UInt8, registers: VirtualMachine.VCPU.Registers, _ vm: VirtualMachine)
 }
 
 
@@ -31,7 +31,7 @@ extension ISAIOHardware {
     }
 
     func process() {}
-    func biosCall(_ ax: UInt16, _ vm: VirtualMachine) {
+    func biosCall(function: UInt8, registers: VirtualMachine.VCPU.Registers, _ vm: VirtualMachine) {
         fatalError("\(self) does not implement biosCall()")
     }
 }

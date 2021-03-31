@@ -302,13 +302,10 @@ extension RTC {
     }
 
 
-    func biosCall(_ ax: UInt16, _ vm: VirtualMachine) {
-        let function = UInt8(ax >> 8)
-        let vcpu = vm.vcpus[0]
-
+    func biosCall(function: UInt8, registers: VirtualMachine.VCPU.Registers, _ vm: VirtualMachine) {
         guard let rtcFunction = BIOSFunction(rawValue: function) else {
             logger.debug("RTC: Invalid function: \(String(function, radix: 16))")
-            vcpu.registers.rflags.carry = true
+            registers.rflags.carry = true
             return
         }
 
@@ -318,46 +315,46 @@ extension RTC {
                 fatalError("Should be handled by BIOS")
 
             case .readRealTimeClockTime:
-                vcpu.registers.ch = toBCD(staticRam.rtcHour)
-                vcpu.registers.cl = toBCD(staticRam.rtcMinute)
-                vcpu.registers.dh = toBCD(staticRam.rtcSecond)
-                vcpu.registers.dl = staticRam.daylightSavings ? 1 : 0
-                vcpu.registers.rflags.carry = false
+                registers.ch = toBCD(staticRam.rtcHour)
+                registers.cl = toBCD(staticRam.rtcMinute)
+                registers.dh = toBCD(staticRam.rtcSecond)
+                registers.dl = staticRam.daylightSavings ? 1 : 0
+                registers.rflags.carry = false
 
             case .setRealTimeClockTime:
-                staticRam.rtcHour = fromBCD(vcpu.registers.ch)
-                staticRam.rtcMinute = fromBCD(vcpu.registers.cl)
-                staticRam.rtcSecond = fromBCD(vcpu.registers.dh)
-                staticRam.daylightSavings = (vcpu.registers.dl == 0) ? false : true
-                vcpu.registers.rflags.carry = false
+                staticRam.rtcHour = fromBCD(registers.ch)
+                staticRam.rtcMinute = fromBCD(registers.cl)
+                staticRam.rtcSecond = fromBCD(registers.dh)
+                staticRam.daylightSavings = (registers.dl == 0) ? false : true
+                registers.rflags.carry = false
 
             case .readRealTimeClockDate:
-                vcpu.registers.ch = toBCD(staticRam.rtcCentury)
-                vcpu.registers.cl = toBCD(staticRam.rtcYear)
-                vcpu.registers.dh = toBCD(staticRam.rtcMonth)
-                vcpu.registers.dl = toBCD(staticRam.rtcDayOfMonth)
-                vcpu.registers.rflags.carry = false
+                registers.ch = toBCD(staticRam.rtcCentury)
+                registers.cl = toBCD(staticRam.rtcYear)
+                registers.dh = toBCD(staticRam.rtcMonth)
+                registers.dl = toBCD(staticRam.rtcDayOfMonth)
+                registers.rflags.carry = false
 
             case .setRealTimeClockDate:
-                staticRam.rtcCentury = vcpu.registers.ch
-                staticRam.rtcYear = fromBCD(vcpu.registers.cl)
-                staticRam.rtcMonth = fromBCD(vcpu.registers.dh)
-                staticRam.rtcDayOfMonth = fromBCD(vcpu.registers.dl)
-                vcpu.registers.rflags.carry = false
+                staticRam.rtcCentury = registers.ch
+                staticRam.rtcYear = fromBCD(registers.cl)
+                staticRam.rtcMonth = fromBCD(registers.dh)
+                staticRam.rtcDayOfMonth = fromBCD(registers.dl)
+                registers.rflags.carry = false
 
             case .setRealTimeClockAlarm:
                 if staticRam.registerA.timeUpdateInProgress || staticRam.registerB.alarmInterruptEnabled {
-                    vcpu.registers.rflags.carry = true
+                    registers.rflags.carry = true
                 } else {
-                    staticRam.alarmHour = fromBCD(vcpu.registers.ch)
-                    staticRam.alarmMinute = fromBCD(vcpu.registers.cl)
-                    staticRam.alarmSecond = fromBCD(vcpu.registers.dh)
-                    vcpu.registers.rflags.carry = false
+                    staticRam.alarmHour = fromBCD(registers.ch)
+                    staticRam.alarmMinute = fromBCD(registers.cl)
+                    staticRam.alarmSecond = fromBCD(registers.dh)
+                    registers.rflags.carry = false
                 }
 
             case .resetRealTimeClockAlarm:
                 staticRam.registerB.alarmInterruptEnabled = false
-                vcpu.registers.rflags.carry = false
+                registers.rflags.carry = false
 
             case .setRealTimeClockActivatePowerOnMode: fallthrough
             case .readRealTimeClockAlarm: fallthrough

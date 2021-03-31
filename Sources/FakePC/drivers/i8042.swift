@@ -564,45 +564,43 @@ extension I8042 {
     }
 
 
-    func biosCall(_ ax: UInt16, _ vm: VirtualMachine) {
-        let function = UInt8(ax >> 8)
-        let vcpu = vm.vcpus[0]
+    func biosCall(function: UInt8, registers: VirtualMachine.VCPU.Registers, _ vm: VirtualMachine) {
 
         guard let keyboardFunction = BIOSFunction(rawValue: function) else {
-            logger.debug("KEYBOARD: AX=0x\(String(ax, radix: 16)) not implemented")
-            vcpu.registers.rflags.zero = false
-            vcpu.registers.rflags.carry = true
+            logger.debug("KEYBOARD: AX=0x\(String(registers.ax, radix: 16)) not implemented")
+            registers.rflags.zero = false
+            registers.rflags.carry = true
             return
         }
         logger.trace("KEYBOARD: \(keyboardFunction)")
         switch keyboardFunction {
             case .waitForKeyAndRead, .extendedWaitForKeyAndRead:
-                vcpu.registers.ax = keyboardBuffer.waitForData()
-                vcpu.registers.rflags.zero = false
+                registers.ax = keyboardBuffer.waitForData()
+                registers.rflags.zero = false
 
             case .getKeyStatus, .extendedGetKeyStatus:
                 if let data = keyboardBuffer.peek() {
-                    vcpu.registers.ax = data
-                    vcpu.registers.rflags.zero = false
+                    registers.ax = data
+                    registers.rflags.zero = false
                 } else {
-                    vcpu.registers.ax = 0
-                    vcpu.registers.rflags.zero = true
+                    registers.ax = 0
+                    registers.rflags.zero = true
                 }
 
             case .extendedGetShiftStatus:
                 let bda = BDA()
-                vcpu.registers.ah = bda.keyboardStatusFlags2
+                registers.ah = bda.keyboardStatusFlags2
                 fallthrough
 
             case .getShiftStatus:
                 let bda = BDA()
-                vcpu.registers.al = bda.keyboardStatusFlags1
-                vcpu.registers.rflags.zero = false
+                registers.al = bda.keyboardStatusFlags1
+                registers.rflags.zero = false
 
             default:
                 logger.debug("KEYBOARD: \(keyboardFunction) not implemented")
-                vcpu.registers.rflags.zero = false
-                vcpu.registers.rflags.carry = true
+                registers.rflags.zero = false
+                registers.rflags.carry = true
         }
     }
 }
