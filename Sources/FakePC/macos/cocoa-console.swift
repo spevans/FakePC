@@ -11,6 +11,8 @@
 #if os(macOS)
 
 import Cocoa
+import BABAB
+
 
 // VGA RAMDAC is 18bit, 6bits per colour
 fileprivate struct VGAPaletteEntry {
@@ -109,7 +111,7 @@ class CocoaConsole: Console {
             for column in 0..<screenMode.textColumns {
                 let (character, attribute) = newCharacter(row, column)!
                 let ch = (character >= 32 && character < 127) ? String(Character(Unicode.Scalar(character))) : "?"
-                let attr = hexNum(attribute, width: 2)
+                let attr = hexNum(attribute)
                 line.append("\(ch)\(attr) ")
             }
             line.append("\n")

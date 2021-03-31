@@ -12,6 +12,7 @@ let package = Package(
         // Dependencies declare other packages that this package depends on.
         // .package(url: /* package url */, from: "1.0.0"),
         .package(path: "../HypervisorKit"),
+        .package(url: "https://github.com/spevans/swift-babab.git", from: "0.0.1"),
         .package(url: "https://github.com/apple/swift-log.git", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-argument-parser", .upToNextMinor(from: "0.3.0")),
     ],
@@ -23,6 +24,7 @@ let package = Package(
             dependencies: [
                 "CFakePC",
                 "HypervisorKit",
+                .product(name: "BABAB", package: "swift-babab"),
                 .product(name: "ArgumentParser", package: "swift-argument-parser"),
                 .product(name: "Logging", package: "swift-log")
             ],
