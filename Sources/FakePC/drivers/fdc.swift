@@ -13,11 +13,6 @@ import HypervisorKit
 
 final class FDC: ISAIOHardware {
 
-    struct BiosFloppyType {
-        let geometry: Disk.Geometry
-    }
-
-
     static let floppyGeometries: [Disk.Geometry] = [
         // 160K 5.25" Single Sided Double Density
         Disk.Geometry(sectorsPerTrack: 8, tracksPerHead: 40, heads: 1),

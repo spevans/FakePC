@@ -16,6 +16,50 @@ protocol PS2Device {
     func setController(_ controller: I8042)
 }
 
+extension I8042 {
+    internal class PortBuffer {
+        private let lock = NSLock()
+        private var semaphore = DispatchSemaphore(value: 0)
+        private var buffer: [UInt16] = []
+
+        func peek() -> UInt16? {
+            var result: UInt16? = nil
+            lock.lock()
+            if buffer.count > 0 { result = buffer[0] }
+            lock.unlock()
+            return result
+        }
+
+        func waitForData() -> UInt16 {
+            while true {
+                lock.lock()
+                if buffer.count > 0 {
+                    let result = buffer.remove(at: 0)
+                    lock.unlock()
+                    return result
+                }
+                lock.unlock()
+                semaphore.wait()
+            }
+        }
+
+        @discardableResult
+        func addData(_ data: UInt16) -> Bool {
+            var result = false
+            lock.lock()
+            if buffer.count < 16 {
+                buffer.append(data)
+                result = true
+            } else {
+                logger.debug("i8042: Buffer full!")
+            }
+            lock.unlock()
+            semaphore.signal()
+            return result
+        }
+    }
+}
+
 
 final class I8042: ISAIOHardware {
 
@@ -383,60 +427,16 @@ final class I8042: ISAIOHardware {
         0x75: 0x9800,   // Up Arrow
     ]
 
-    private struct PortBuffer {
-        private let lock = NSLock()
-        private var semaphore = DispatchSemaphore(value: 0)
-        private var buffer: [UInt16] = []
-
-        func peek() -> UInt16? {
-            var result: UInt16? = nil
-            lock.lock()
-            if buffer.count > 0 { result = buffer[0] }
-            lock.unlock()
-            return result
-        }
-
-        mutating func waitForData() -> UInt16 {
-            while true {
-                lock.lock()
-                if buffer.count > 0 {
-                    let result = buffer.remove(at: 0)
-                    lock.unlock()
-                    return result
-                }
-                lock.unlock()
-                semaphore.wait()
-            }
-        }
-
-        @discardableResult
-        mutating func addData(_ data: UInt16) -> Bool {
-            var result = false
-            lock.lock()
-            if buffer.count < 16 {
-                buffer.append(data)
-                result = true
-            } else {
-                logger.debug("i8042: Buffer full!")
-            }
-            lock.unlock()
-            semaphore.signal()
-            return result
-        }
-    }
-
 
     private let keyboard: PS2Device?
     private let mouse: PS2Device?
-    private var keyboardBuffer: PortBuffer
-    private var mouseBuffer: PortBuffer
+    internal let keyboardBuffer = PortBuffer()
+    private var mouseBuffer = PortBuffer()
 
 
     init(keyboard: PS2Device? = nil, mouse: PS2Device? = nil) {
         self.keyboard = keyboard
         self.mouse = mouse
-        self.keyboardBuffer = PortBuffer()
-        self.mouseBuffer = PortBuffer()
 
         keyboard?.setController(self)
         mouse?.setController(self)
@@ -543,64 +543,6 @@ final class I8042: ISAIOHardware {
             }
             isE0 = false
             isBreak = false
-        }
-    }
-}
-
-
-// INT 16h BIOS Interface
-extension I8042 {
-
-    private enum BIOSFunction: UInt8 {
-        case waitForKeyAndRead = 0
-        case getKeyStatus = 1
-        case getShiftStatus = 2
-        case setTypematicRate = 3
-        case setKeyclick = 4
-        case keyBufferWrite = 5
-        case extendedWaitForKeyAndRead = 0x10
-        case extendedGetKeyStatus = 0x11
-        case extendedGetShiftStatus = 0x12
-    }
-
-
-    func biosCall(function: UInt8, registers: VirtualMachine.VCPU.Registers, _ vm: VirtualMachine) {
-
-        guard let keyboardFunction = BIOSFunction(rawValue: function) else {
-            logger.debug("KEYBOARD: AX=0x\(String(registers.ax, radix: 16)) not implemented")
-            registers.rflags.zero = false
-            registers.rflags.carry = true
-            return
-        }
-        logger.trace("KEYBOARD: \(keyboardFunction)")
-        switch keyboardFunction {
-            case .waitForKeyAndRead, .extendedWaitForKeyAndRead:
-                registers.ax = keyboardBuffer.waitForData()
-                registers.rflags.zero = false
-
-            case .getKeyStatus, .extendedGetKeyStatus:
-                if let data = keyboardBuffer.peek() {
-                    registers.ax = data
-                    registers.rflags.zero = false
-                } else {
-                    registers.ax = 0
-                    registers.rflags.zero = true
-                }
-
-            case .extendedGetShiftStatus:
-                let bda = BDA()
-                registers.ah = bda.keyboardStatusFlags2
-                fallthrough
-
-            case .getShiftStatus:
-                let bda = BDA()
-                registers.al = bda.keyboardStatusFlags1
-                registers.rflags.zero = false
-
-            default:
-                logger.debug("KEYBOARD: \(keyboardFunction) not implemented")
-                registers.rflags.zero = false
-                registers.rflags.carry = true
         }
     }
 }
