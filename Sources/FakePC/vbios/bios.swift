@@ -70,4 +70,3 @@ private func systemServices(function: UInt8, registers: VirtualMachine.VCPU.Regi
     logger.debug("SYSTEM: function = 0x\(String(function, radix: 16)) not implemented")
     registers.rflags.carry = true
 }
-

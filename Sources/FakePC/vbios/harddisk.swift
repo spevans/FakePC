@@ -16,45 +16,33 @@ func biosCallForHardDrive(_ diskFunction: Disk.BIOSFunction, hdc: HDC, drive: In
 
     let disk = hdc.disks[drive]!
     let vcpu = vm.vcpus[0]
-        let status: Disk.Status
-        switch diskFunction {
+    let status: Disk.Status
+    switch diskFunction {
 
-            case .resetDisk:
-                status = disk.setCurrentTrack(0)
+        case .resetDisk:
+            status = disk.setCurrentTrack(0)
 
-    case .getStatus:  // Shouldnt be used as dealt with by called
-                let statusByte = BDA().statusLastHardDiskOperation
-                vcpu.registers.ah = statusByte
-                 status = Disk.Status(rawValue: statusByte) ?? .undefinedError
+        case .getStatus:  // Shouldnt be used as dealt with by called
+            let statusByte = BDA().statusLastHardDiskOperation
+            vcpu.registers.ah = statusByte
+            status = Disk.Status(rawValue: statusByte) ?? .undefinedError
 
-            case .readSectors:
-                switch disk.validateSectorOperation(vcpu: vcpu) {
-                    case .failure(let error):
-                        status = error
+        case .readSectors:
+            switch disk.validateSectorOperation(vcpu: vcpu) {
+                case .failure(let error):
+                    status = error
 
-                    case .success(let operation):
-                        let ptr = vm.memoryRegions[0].rawBuffer.baseAddress!.advanced(by: operation.bufferOffset)
-                        let buffer = UnsafeMutableRawBufferPointer(start: ptr, count: operation.bufferSize)
-                        status = operation.readSectors(into: buffer)
-                }
+                case .success(let operation):
+                    let ptr = vm.memoryRegions[0].rawBuffer.baseAddress!.advanced(by: operation.bufferOffset)
+                    let buffer = UnsafeMutableRawBufferPointer(start: ptr, count: operation.bufferSize)
+                    status = operation.readSectors(into: buffer)
+            }
 
-            case .writeSectors:
-                if disk.isReadOnly {
-                    status = .writeProtected
-                    break
-                } else {
-                    switch disk.validateSectorOperation(vcpu: vcpu) {
-                        case .failure(let error):
-                            status = error
-
-                        case .success(let operation):
-                            let ptr = vm.memoryRegions[0].rawBuffer.baseAddress!.advanced(by: operation.bufferOffset)
-                            let buffer = UnsafeRawBufferPointer(start: ptr, count: operation.bufferSize)
-                            status = operation.writeSectors(from: buffer)
-                    }
-                }
-
-            case .verifySectors:
+        case .writeSectors:
+            if disk.isReadOnly {
+                status = .writeProtected
+                break
+            } else {
                 switch disk.validateSectorOperation(vcpu: vcpu) {
                     case .failure(let error):
                         status = error
@@ -62,113 +50,124 @@ func biosCallForHardDrive(_ diskFunction: Disk.BIOSFunction, hdc: HDC, drive: In
                     case .success(let operation):
                         let ptr = vm.memoryRegions[0].rawBuffer.baseAddress!.advanced(by: operation.bufferOffset)
                         let buffer = UnsafeRawBufferPointer(start: ptr, count: operation.bufferSize)
-                        status = operation.verifySectors(using: buffer)
+                        status = operation.writeSectors(from: buffer)
                 }
+            }
 
-            case .formatTrack:
-                status = .invalidCommand    // Only for floppy drives
+        case .verifySectors:
+            switch disk.validateSectorOperation(vcpu: vcpu) {
+                case .failure(let error):
+                    status = error
 
-            case .formatTrackSetBadSectors:
-                status = .invalidCommand
+                case .success(let operation):
+                    let ptr = vm.memoryRegions[0].rawBuffer.baseAddress!.advanced(by: operation.bufferOffset)
+                    let buffer = UnsafeRawBufferPointer(start: ptr, count: operation.bufferSize)
+                    status = operation.verifySectors(using: buffer)
+            }
 
-            case .formatDrive:
-                status = .invalidCommand
+        case .formatTrack:
+            status = .invalidCommand    // Only for floppy drives
 
-            case .readDriveParameters:
-                status = disk.getDriveParameters(vcpu: vcpu)
-                if status == .ok {
-                    vcpu.registers.bl = 00  // drive type
-                    vcpu.registers.dl = UInt8(hdc.disks.filter { $0 != nil }.count) // drive count
-                }
+        case .formatTrackSetBadSectors:
+            status = .invalidCommand
 
-            case .initialiseHDControllerTables:
-                status = .invalidCommand
+        case .formatDrive:
+            status = .invalidCommand
 
-            case .readLongSector:
-                status = .invalidCommand
+        case .readDriveParameters:
+            status = disk.getDriveParameters(vcpu: vcpu)
+            if status == .ok {
+                vcpu.registers.bl = 00  // drive type
+                vcpu.registers.dl = UInt8(hdc.disks.filter { $0 != nil }.count) // drive count
+            }
 
-            case .writeLongSector:
-                status = .invalidCommand
+        case .initialiseHDControllerTables:
+            status = .invalidCommand
 
-            case .seekToCylinder:
-                let (track, _) = Disk.trackAndSectorFrom(cx: vcpu.registers.cx)
-                status = disk.setCurrentTrack(track)
+        case .readLongSector:
+            status = .invalidCommand
 
-            case .alternateDiskReset:
-                // Reset both disks
-                let status1 = hdc.disks[0]?.setCurrentTrack(0) ?? .ok
-                let status2 = hdc.disks[1]?.setCurrentTrack(0) ?? .ok
-                status = (status1 != .ok) ? status1 : status2
+        case .writeLongSector:
+            status = .invalidCommand
 
-            case .readSectorBuffer:
-                status = .invalidCommand
+        case .seekToCylinder:
+            let (track, _) = Disk.trackAndSectorFrom(cx: vcpu.registers.cx)
+            status = disk.setCurrentTrack(track)
 
-            case .writeSectorBuffer:
-                status = .invalidCommand
+        case .alternateDiskReset:
+            // Reset both disks
+            let status1 = hdc.disks[0]?.setCurrentTrack(0) ?? .ok
+            let status2 = hdc.disks[1]?.setCurrentTrack(0) ?? .ok
+            status = (status1 != .ok) ? status1 : status2
 
-            case .testForDriveReady:
-                status = .ok
+        case .readSectorBuffer:
+            status = .invalidCommand
 
-            case .recalibrateDrive:
-                status = disk.setCurrentTrack(0)
+        case .writeSectorBuffer:
+            status = .invalidCommand
 
-            case .controllerRamDiagnostic:
-                status = .ok
+        case .testForDriveReady:
+            status = .ok
 
-            case .driveDiagnostic:
-                status = .ok
+        case .recalibrateDrive:
+            status = disk.setCurrentTrack(0)
 
-            case .controllerInternalDiagnostic:
-                status = .ok
+        case .controllerRamDiagnostic:
+            status = .ok
 
-            case .getDiskType:
-                fatalError("HDC: readDASDType should have been handled earlier")
+        case .driveDiagnostic:
+            status = .ok
 
-            case .changeOfDiskStatus:
-                // Change line inactive, disk not changed
-                status = .invalidCommand
+        case .controllerInternalDiagnostic:
+            status = .ok
 
-            case .setDiskTypeForFormat:
-                status = .invalidCommand
+        case .getDiskType:
+            fatalError("HDC: readDASDType should have been handled earlier")
 
-            case .setMediaTypeForFormat:
-                status = .invalidCommand
+        case .changeOfDiskStatus:
+            // Change line inactive, disk not changed
+            status = .invalidCommand
 
-            case .parkFixedDiskHeads:
-                status = disk.setCurrentTrack(0)
+        case .setDiskTypeForFormat:
+            status = .invalidCommand
 
-            case .formatESDIDriveUnit:
-                status = .invalidCommand
+        case .setMediaTypeForFormat:
+            status = .invalidCommand
 
-            case .checkExtensionsPresent:
-                status = disk.checkExtensionsPresent(vcpu: vcpu)
+        case .parkFixedDiskHeads:
+            status = disk.setCurrentTrack(0)
 
-            case .extendedReadSectors:
-                status = disk.extendedRead(vcpu: vcpu)
+        case .formatESDIDriveUnit:
+            status = .invalidCommand
 
-            case .extendedWriteSectors:
-                status = disk.extendedWrite(vcpu: vcpu)
+        case .checkExtensionsPresent:
+            status = disk.checkExtensionsPresent(vcpu: vcpu)
 
-            case .extendedVerifySectors:
-                status = disk.extendedVerify(vcpu: vcpu)
+        case .extendedReadSectors:
+            status = disk.extendedRead(vcpu: vcpu)
 
-            case .extendedSeek:
-                status = .invalidCommand
+        case .extendedWriteSectors:
+            status = disk.extendedWrite(vcpu: vcpu)
 
-            case .extendedGetDriveParameters:
-                status = disk.extendedGetDriveParameters(vcpu: vcpu)
+        case .extendedVerifySectors:
+            status = disk.extendedVerify(vcpu: vcpu)
 
-            default:
-                status = .invalidCommand
+        case .extendedSeek:
+            status = .invalidCommand
 
-        }
+        case .extendedGetDriveParameters:
+            status = disk.extendedGetDriveParameters(vcpu: vcpu)
 
-        if status == .invalidCommand {
-            logger.debug("HDC: Invalid command: \(diskFunction)")
-        } else if status != .ok {
-            logger.debug("HDC: \(diskFunction) returned status \(status)")
-            vcpu.showRegisters()
-        }
-        return status
+        default:
+            status = .invalidCommand
+
     }
 
+    if status == .invalidCommand {
+        logger.debug("HDC: Invalid command: \(diskFunction)")
+    } else if status != .ok {
+        logger.debug("HDC: \(diskFunction) returned status \(status)")
+        vcpu.showRegisters()
+    }
+    return status
+}

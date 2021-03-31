@@ -72,62 +72,62 @@ final class FakePC {
         vmExitCount += 1
 
         switch vmExit {
-        case .ioOutOperation(let port, let data):
-            if case VMExit.DataWrite.word(let value) = data {
+            case .ioOutOperation(let port, let data):
+                if case VMExit.DataWrite.word(let value) = data {
+                    let registers = try vcpu.readRegisters([.rip, .cs])
+                    let ip = UInt64(registers.cs.base) + registers.rip
+                    // Is call from BIOS?
+                    if (port >= 0xE0 && port <= 0xEF) && (ip >= 0xFE000 && ip <= 0xFFFFF) {
+                        // function = AH
+                        try biosCall(fakePC: self, subSystem: port, function: UInt8(value >> 8))
+                        break
+                    } else {
+                        logger.debug("Port: \(String(port, radix: 16)) IP: \(String(ip, radix: 16))")
+                        logger.debug("Not a bios call")
+                    }
+
+                }
+                try self.rootResourceManager.ioOut(port: port, dataWrite: data)
+
+            case .ioInOperation(let port, let dataRead):
+                let data = self.rootResourceManager.ioIn(port: port, dataRead: dataRead)
+                logger.debug("ioIn(0x\(String(port, radix: 16)), \(dataRead) => \(data))")
+                vcpu.setIn(data: data)
+
+            case .memoryViolation(let violation):
+                if violation.access == .write {
+                    if violation.guestPhysicalAddress >= PhysicalAddress(UInt(0xf0000))
+                        && violation.guestPhysicalAddress <= PhysicalAddress(UInt(0xfffff)) {
+                        // Ignore writes to the BIOS
+                        logger.debug("Skipping BIOS write: \(violation)")
+                        try vcpu.skipInstruction()
+                    } else {
+                        vcpu.showRegisters()
+                        fatalError("memory violation")
+                    }
+                }
+                break
+
+            case .exception(let exceptionInfo):
                 let registers = try vcpu.readRegisters([.rip, .cs])
-                let ip = UInt64(registers.cs.base) + registers.rip
-                // Is call from BIOS?
-                if (port >= 0xE0 && port <= 0xEF) && (ip >= 0xFE000 && ip <= 0xFFFFF) {
-                    // function = AH
-                    try biosCall(fakePC: self, subSystem: port, function: UInt8(value >> 8))
-                    break
-                } else {
-                    logger.debug("Port: \(String(port, radix: 16)) IP: \(String(ip, radix: 16))")
-                    logger.debug("Not a bios call")
-                }
+                vcpu.showRegisters()
+                let offset = Int(registers.cs.base) + Int(registers.ip)
+                logger.debug("\(vm.memoryRegions[0].dumpMemory(at: offset, count: 16))")
+                fatalError("\(vmExit): \(exceptionInfo)")
 
-            }
-            try self.rootResourceManager.ioOut(port: port, dataWrite: data)
+            case .debug(let debug):
+                vcpu.showRegisters()
+                fatalError("\(vmExit): \(debug)")
 
-        case .ioInOperation(let port, let dataRead):
-            let data = self.rootResourceManager.ioIn(port: port, dataRead: dataRead)
-            logger.debug("ioIn(0x\(String(port, radix: 16)), \(dataRead) => \(data))")
-            vcpu.setIn(data: data)
+            case .hlt:
+                logger.debug("HLT... exiting")
+                vcpu.showRegisters()
+                return true
 
-        case .memoryViolation(let violation):
-            if violation.access == .write {
-                if violation.guestPhysicalAddress >= PhysicalAddress(UInt(0xf0000))
-                && violation.guestPhysicalAddress <= PhysicalAddress(UInt(0xfffff)) {
-                    // Ignore writes to the BIOS
-                    logger.debug("Skipping BIOS write: \(violation)")
-                    try vcpu.skipInstruction()
-                } else {
-                    vcpu.showRegisters()
-                    fatalError("memory violation")
-                }
-            }
-            break
-
-        case .exception(let exceptionInfo):
-            let registers = try vcpu.readRegisters([.rip, .cs])
-            vcpu.showRegisters()
-            let offset = Int(registers.cs.base) + Int(registers.ip)
-            logger.debug("\(vm.memoryRegions[0].dumpMemory(at: offset, count: 16))")
-            fatalError("\(vmExit): \(exceptionInfo)")
-
-        case .debug(let debug):
-            vcpu.showRegisters()
-            fatalError("\(vmExit): \(debug)")
-
-        case .hlt:
-            logger.debug("HLT... exiting")
-            vcpu.showRegisters()
-            return true
-
-        default:
-            logger.debug("\(vmExit)")
-            vcpu.showRegisters()
-            fatalError("Unhandled exit: \(vmExit)")
+            default:
+                logger.debug("\(vmExit)")
+                vcpu.showRegisters()
+                fatalError("Unhandled exit: \(vmExit)")
         }
         self.isa.processHardware()
         return false

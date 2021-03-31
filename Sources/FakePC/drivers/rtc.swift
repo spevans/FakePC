@@ -281,4 +281,3 @@ final class RTC: ISAIOHardware {
         return result
     }
 }
-

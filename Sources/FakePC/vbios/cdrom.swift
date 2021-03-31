@@ -17,72 +17,72 @@ func biosCallForCdrom(_ diskFunction: Disk.BIOSFunction, disk: Disk, vm: Virtual
     logger.debug("CDROM: \(diskFunction)")
     let vcpu = vm.vcpus[0]
 
-        let status: Disk.Status
-        switch diskFunction {
-            case .resetDisk:
-                status = .ok
+    let status: Disk.Status
+    switch diskFunction {
+        case .resetDisk:
+            status = .ok
 
-    case .getStatus:  // Shouldnt be used as dealt with by called
-        let statusByte = BDA().statusLastHardDiskOperation
-                vcpu.registers.ah = statusByte
-                 status = Disk.Status(rawValue: statusByte) ?? .undefinedError
+        case .getStatus:  // Shouldnt be used as dealt with by called
+            let statusByte = BDA().statusLastHardDiskOperation
+            vcpu.registers.ah = statusByte
+            status = Disk.Status(rawValue: statusByte) ?? .undefinedError
 
         case .readDriveParameters:
             status = .invalidMedia
 
-            case .checkExtensionsPresent:
-                status = disk.checkExtensionsPresent(vcpu: vcpu)
+        case .checkExtensionsPresent:
+            status = disk.checkExtensionsPresent(vcpu: vcpu)
 
-            case .extendedReadSectors:
-                status = disk.extendedRead(vcpu: vcpu)
+        case .extendedReadSectors:
+            status = disk.extendedRead(vcpu: vcpu)
 
-            case .extendedWriteSectors:
-                status = .writeProtected
+        case .extendedWriteSectors:
+            status = .writeProtected
 
-            case .extendedVerifySectors:
-                status = disk.extendedVerify(vcpu: vcpu)
+        case .extendedVerifySectors:
+            status = disk.extendedVerify(vcpu: vcpu)
 
-            case .lockUnlockDrive:
-                status = .invalidCommand
+        case .lockUnlockDrive:
+            status = .invalidCommand
 
-            case .ejectMedia:
-                status = .invalidCommand
+        case .ejectMedia:
+            status = .invalidCommand
 
-            case .extendedSeek:
-                status = .invalidCommand
+        case .extendedSeek:
+            status = .invalidCommand
 
-            case .extendedGetDriveParameters:
-                status = disk.extendedGetDriveParameters(vcpu: vcpu)
+        case .extendedGetDriveParameters:
+            status = disk.extendedGetDriveParameters(vcpu: vcpu)
 
-            case .extendedMediaChange:
-                status = .invalidCommand
+        case .extendedMediaChange:
+            status = .invalidCommand
 
-            case .initiateDiskEmulationForCdrom:
-                status = .invalidCommand
+        case .initiateDiskEmulationForCdrom:
+            status = .invalidCommand
 
-            case .terminateDiskEmulationForCdrom:
-                status = .invalidCommand
+        case .terminateDiskEmulationForCdrom:
+            status = .invalidCommand
 
-            case .initiateDiskEmulateForCdromAndBoot:
-                status = .invalidCommand
+        case .initiateDiskEmulateForCdromAndBoot:
+            status = .invalidCommand
 
-            case .returnBootCatalogForCdrom:
-                status = .invalidCommand
+        case .returnBootCatalogForCdrom:
+            status = .invalidCommand
 
-            case .sendPacketCommand:
-                status = .invalidCommand
+        case .sendPacketCommand:
+            status = .invalidCommand
 
-            default:
-                status = .invalidCommand
-        }
-/*
-        if status == .invalidCommand {
-            logger.debug("CDROM: Invalid command: \(diskFunction)")
-        } else if status != .ok {
-            logger.debug("CDROM: \(diskFunction) returned status \(status)")
-            vcpu.showRegisters()
-        }
-*/
-        logger.debug("CDROM: \(diskFunction) returned status \(status)")
-        return status
+        default:
+            status = .invalidCommand
     }
+    /*
+     if status == .invalidCommand {
+     logger.debug("CDROM: Invalid command: \(diskFunction)")
+     } else if status != .ok {
+     logger.debug("CDROM: \(diskFunction) returned status \(status)")
+     vcpu.showRegisters()
+     }
+     */
+    logger.debug("CDROM: \(diskFunction) returned status \(status)")
+    return status
+}

@@ -122,9 +122,9 @@ class CocoaConsole: Console {
 
     func rasteriseTextMemory(screenMode: ScreenMode, font: Font, newCharacter: (Int, Int) -> (character: UInt8, attribute: UInt8)?) {
 
-//        if screenMode.isTextMode {
-//            screenDump = dumpTextMemory(screenMode: screenMode, newCharacter: newCharacter)
-//        }
+        //        if screenMode.isTextMode {
+        //            screenDump = dumpTextMemory(screenMode: screenMode, newCharacter: newCharacter)
+        //        }
 
         func characterImage(character: UInt8, attribute: UInt8) -> NSImage {
             precondition(font.width.isMultiple(of: 8))
@@ -237,7 +237,7 @@ private class Screen: NSView {
                                             bitmapFormat: .alphaFirst,
                                             bytesPerRow: 0,
                                             bitsPerPixel: 0) else {
-                                            fatalError("Cant allocate NSBitmapImageRep")
+            fatalError("Cant allocate NSBitmapImageRep")
         }
 
         // Set the screen to black

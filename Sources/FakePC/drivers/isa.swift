@@ -81,11 +81,11 @@ final class ISA {
 
         resourceManager = try rootResourceManager.reserve(portRange: 0...0x3ff, irqRange: 0...15)
         // TODO - Generate list of valid displays for each platform and feed into config parser
-#if os(macOS)
+        #if os(macOS)
         self.console = config.textMode ? CursesConsole() : CocoaConsole()
-#else
+        #else
         self.console = CursesConsole()
-#endif
+        #endif
         // ISA bus has a fixed set of hardware at known locations so they
         // are hardcoded here.
         let pic1 = PIC(vcpu: vcpu, master: nil)

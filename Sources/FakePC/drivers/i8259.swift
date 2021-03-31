@@ -249,7 +249,7 @@ final class PIC: ISAIOHardware {
                     // Clear any pending IRQ sent to the CPU.
                     vcpu.clearPendingIRQ()
                     state = .waitingForICW2
-            }
+                }
 
             case (.waitingForICW2, _, _):
                 if a0 {
@@ -262,7 +262,7 @@ final class PIC: ISAIOHardware {
                     } else {
                         state = .ready
                     }
-            }
+                }
 
             case (.waitingForICW3, _, _):
                 if a0 {
@@ -272,13 +272,13 @@ final class PIC: ISAIOHardware {
                     } else {
                         state = .ready
                     }
-            }
+                }
 
             case (.waitingForICW4, _, _):
                 if a0 {
                     self.icw4 = ICW4(value: byte)
                     state = .ready
-            }
+                }
 
             case (.ready, _, _):
                 // Look for Operation Control Words
@@ -310,7 +310,7 @@ final class PIC: ISAIOHardware {
                     } else if let ocw3 = OCW3(value: byte) {
                         self.ocw3 = ocw3
                     }
-            }
+                }
 
             default: break
         }

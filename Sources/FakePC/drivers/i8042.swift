@@ -539,7 +539,7 @@ final class I8042: ISAIOHardware {
                         if let scanCode = scanCode {
                             keyboardBuffer.addData(scanCode)
                         }
-                }
+                    }
             }
             isE0 = false
             isBreak = false

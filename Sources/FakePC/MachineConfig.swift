@@ -22,5 +22,3 @@ struct MachineConfig {
     let hd2: Disk?
     let hd3: Disk?
 }
-
-
