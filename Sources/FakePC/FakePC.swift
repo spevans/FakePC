@@ -94,20 +94,6 @@ final class FakePC {
                 logger.debug("ioIn(0x\(String(port, radix: 16)), \(dataRead) => \(data))")
                 vcpu.setIn(data: data)
 
-            case .memoryViolation(let violation):
-                if violation.access == .write {
-                    if violation.guestPhysicalAddress >= PhysicalAddress(UInt(0xf0000))
-                        && violation.guestPhysicalAddress <= PhysicalAddress(UInt(0xfffff)) {
-                        // Ignore writes to the BIOS
-                        logger.debug("Skipping BIOS write: \(violation)")
-                        try vcpu.skipInstruction()
-                    } else {
-                        vcpu.showRegisters()
-                        fatalError("memory violation")
-                    }
-                }
-                break
-
             case .exception(let exceptionInfo):
                 let registers = try vcpu.readRegisters([.rip, .cs])
                 vcpu.showRegisters()
