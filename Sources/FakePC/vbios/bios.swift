@@ -17,7 +17,7 @@ func biosCall(fakePC: FakePC, subSystem: IOPort, function: UInt8) throws {
     let vm = fakePC.vm
     let isa = fakePC.isa
     let vcpu = vm.vcpus[0]
-    let registers = try vcpu.readRegisters([.rax, .rbx, .rcx, .rdx, .rflags, .segmentRegisters])
+    let registers = try vcpu.readRegisters([.rax, .rbx, .rcx, .rdx, .rsi, .rflags, .segmentRegisters])
 
     logger.debug("biosCall, subSystem: \(String(subSystem, radix: 16)), function: \(String(function, radix: 16))")
     func debug() {

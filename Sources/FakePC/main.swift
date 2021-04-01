@@ -93,9 +93,9 @@ struct FakePCCommand: ParsableCommand {
         let fd0Disk = fd0 == nil ? nil : FDC.parseCommandLineArguments(fd0!)
         let fd1Disk = fd1 == nil ? nil : FDC.parseCommandLineArguments(fd1!)
         let hd0Disk = hd0 == nil ? nil : HDC.parseCommandLineArguments(hd0!)
-        let hd1Disk = hd0 == nil ? nil : HDC.parseCommandLineArguments(hd1!)
-        let hd2Disk = hd0 == nil ? nil : HDC.parseCommandLineArguments(hd2!)
-        let hd3Disk = hd0 == nil ? nil : HDC.parseCommandLineArguments(hd3!)
+        let hd1Disk = hd1 == nil ? nil : HDC.parseCommandLineArguments(hd1!)
+        let hd2Disk = hd2 == nil ? nil : HDC.parseCommandLineArguments(hd2!)
+        let hd3Disk = hd3 == nil ? nil : HDC.parseCommandLineArguments(hd3!)
 
         let config = MachineConfig(biosURL: biosURL,
                                    textMode: textMode,
