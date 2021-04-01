@@ -120,9 +120,8 @@ final class FakePC {
                 fatalError("\(vmExit): \(debug)")
 
             case .hlt:
-                logger.debug("HLT... exiting")
-                vcpu.showRegisters()
-                return true
+                // TODO - Add option to tell hvkit not to return this option
+                return false
 
             default:
                 logger.debug("\(vmExit)")
