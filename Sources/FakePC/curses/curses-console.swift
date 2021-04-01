@@ -178,8 +178,8 @@ final class CursesKeyboard: PS2Device {
         0x3f: .shifted(0x4A),       // ?
 
 
-        0x102: .unshifted(0xE075),  // Up arrow
-        0x103: .unshifted(0xE072),  // Down arrow
+        0x102: .unshifted(0xE072),  // Down arrow
+        0x103: .unshifted(0xE075),  // Up arrow
         0x104: .unshifted(0xE06B),  // Left arrow
         0x105: .unshifted(0xE074),  // Right arrow
 
