@@ -1,32 +1,14 @@
 //
-//  curses-console.swift
+//  CursesKeyboard.swift
 //  FakePC
 //
-//  Created by Simon Evans on 24/04/2020.
+//  Created by Simon Evans on 02/04/2021.
 //  Copyright © 2020 Simon Evans. All rights reserved.
 //
-//  Text (MDA) console using curses text mode, screen + keyboard, no mouse.
+//  Keyboard input using curses on the terminal for input.
 //
 
-
-#if canImport(LinuxCurses)
-import LinuxCurses
-import Glibc
-#endif
-
-#if canImport(DarwinCurses)
-import DarwinCurses
-import Darwin
-#endif
-
 import CFakePC
-
-
-func cursesStartupWith(_ fakePC: FakePC) {
-    let kb = fakePC.isa.console.keyboard as! CursesKeyboard
-    fakePC.runVMThread()
-    kb.keyboardLoop()
-}
 
 
 final class CursesKeyboard: PS2Device {
@@ -226,8 +208,7 @@ final class CursesKeyboard: PS2Device {
             if ch == -1 { continue }
             if ch == 0xa7 {
                 // Use §/± key as exit for now
-                endwin()
-                exit(1)
+                return
             }
             guard let keyPress = scanCodes2[ch] else {
                 let s = String(UnicodeScalar(UInt32(ch)) ?? UnicodeScalar(32))
@@ -253,49 +234,5 @@ final class CursesKeyboard: PS2Device {
                     sendBreakCodesForScanCode(0x14) // Left Control
             }
         }
-    }
-}
-
-
-class CursesConsole: Console {
-    let keyboard: PS2Device?
-    let mouse: PS2Device? = nil
-
-    var updateHandler: (() -> ())?
-
-    init() {
-        setlocale(LC_ALL, "")
-        initscr()
-        cbreak()
-        noecho()
-        nonl()
-        halfdelay(2)
-        intrflush(stdscr, false)
-        keypad(stdscr, true)
-        keyboard = CursesKeyboard()
-    }
-
-
-    func setWindow(screenMode: ScreenMode) {
-    }
-
-
-    func updateDisplay() {
-        if let handler = updateHandler {
-            handler()
-        }
-    }
-
-
-    func rasteriseTextMemory(screenMode: ScreenMode, font: Font,
-                             newCharacter: (_ row: Int, _ column: Int) -> (character: UInt8, attribute: UInt8)?) {
-        for row in 0..<screenMode.textRows {
-            for column in 0..<screenMode.textColumns {
-                if let (character, _) = newCharacter(row, column) {
-                    writeCharAtRowColumn(Int32(row), Int32(column), character)
-                }
-            }
-        }
-        refresh()
     }
 }
