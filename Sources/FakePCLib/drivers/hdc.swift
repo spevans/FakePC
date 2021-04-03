@@ -11,9 +11,9 @@
 import HypervisorKit
 
 
-final class HDC: ISAIOHardware {
+public final class HDC: ISAIOHardware {
 
-    static func parseCommandLineArguments(_ parameters: String) -> Disk? {
+    public static func parseCommandLineArguments(_ parameters: String) -> Disk? {
         var tracks: Int?
         var heads: Int?
         var sectors: Int?

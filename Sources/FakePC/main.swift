@@ -11,14 +11,7 @@
 import Logging
 import ArgumentParser
 import Foundation
-
-
-private(set) var logger: Logger = {
-    LoggingSystem.bootstrap(StreamLogHandler.standardError)
-    var logger = Logger(label: "FakePC")
-    logger.logLevel = .error
-    return logger
-}()
+import FakePCLib
 
 
 // Make the Logger.Level usable as @Option
@@ -68,16 +61,8 @@ struct FakePCCommand: ParsableCommand {
     @Option(help: "Loglevel \(Logger.Level.allValueStrings.joined(separator: ", "))")
     var logLevel: Logger.Level = .error
 
-    func bundledBios(_ name: String) -> URL {
-        if let url = Bundle.module.url(forResource: name, withExtension: "bin") {
-            return url
-        } else {
-            fatalError("Cant find \(name).bin in Bundle resources")
-        }
-    }
 
     func run() {
-        logger.logLevel = logLevel
         let biosURL: URL
 
         let _bios = bios ?? "default"
@@ -103,11 +88,9 @@ struct FakePCCommand: ParsableCommand {
                                    hd2: hd2Disk,
                                    hd3: hd3Disk
         )
-        logger.info("biosURL: \(biosURL)")
-        logger.debug("Config: \(config)")
 
         do {
-            fakePC = try FakePC(config: config)
+            let fakePC = try FakePC(config: config, logLevel: logLevel)
             if config.textMode {
                 cursesStartupWith(fakePC)
             } else {

@@ -40,7 +40,7 @@ class FakePCAppController: NSObject, NSApplicationDelegate {
 }
 
 
-func startupWith(_ fakePC: FakePC) {
+public func startupWith(_ fakePC: FakePC) {
     autoreleasepool {
         var psn = ProcessSerialNumber( highLongOfPSN: 0, lowLongOfPSN: UInt32(kCurrentProcess))
         TransformProcessType(&psn, UInt32(kProcessTransformToForegroundApplication))

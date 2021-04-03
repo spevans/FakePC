@@ -31,7 +31,7 @@ extension FileHandle {
 
 // Represents either 1 floppy or hard disk including BIOS call functions
 // Storage is implemented as a URL to a file on the host drive.
-final class Disk {
+public final class Disk {
 
     enum DriveType {
         case floppy

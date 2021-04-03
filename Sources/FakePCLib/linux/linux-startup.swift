@@ -11,7 +11,7 @@
 #if os(Linux)
 
 
-func startupWith(_ fakePC: FakePC) {
+public func startupWith(_ fakePC: FakePC) {
     fakePC.runVMThread()
 }
 

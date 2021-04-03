@@ -22,7 +22,7 @@ import Darwin
 import CFakePC
 
 
-func cursesStartupWith(_ fakePC: FakePC) {
+public func cursesStartupWith(_ fakePC: FakePC) {
     let kb = fakePC.isa.console.keyboard as! CursesKeyboard
     fakePC.runVMThread()
     kb.keyboardLoop()

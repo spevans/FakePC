@@ -11,7 +11,7 @@
 import HypervisorKit
 
 
-final class FDC: ISAIOHardware {
+public final class FDC: ISAIOHardware {
 
     static let floppyGeometries: [Disk.Geometry] = [
         // 160K 5.25" Single Sided Double Density
@@ -58,7 +58,7 @@ final class FDC: ISAIOHardware {
     var mediaTypeForFormat: [Disk.Geometry?] = [nil, nil]
 
 
-    static func parseCommandLineArguments(_ argument: String) -> Disk? {
+    public static func parseCommandLineArguments(_ argument: String) -> Disk? {
         return diskForImage(path: argument)
     }
 

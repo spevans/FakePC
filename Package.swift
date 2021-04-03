@@ -15,8 +15,9 @@ let package = Package(
         .package(url: "https://github.com/apple/swift-argument-parser", .upToNextMinor(from: "0.3.0")),
     ],
     targets: [
+        .target(name: "FakePC", dependencies: ["FakePCLib"]),
         .target(
-            name: "FakePC",
+            name: "FakePCLib",
             dependencies: [
                 "CFakePC",
                 .product(name: "HypervisorKit", package: "hypervisor-kit"),
@@ -28,6 +29,6 @@ let package = Package(
             resources: [.process("Resources")]
         ),
         .target(name: "CFakePC", dependencies: []),
-        .testTarget(name: "FakePCTests", dependencies: ["FakePC"]),
+        .testTarget(name: "FakePCTests", dependencies: ["FakePCLib"]),
     ]
 )

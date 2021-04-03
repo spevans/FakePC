@@ -11,9 +11,18 @@
 import HypervisorKit
 import Foundation
 import BABAB
+import Logging
 
 
-final class FakePC {
+private(set) var logger: Logger = {
+    LoggingSystem.bootstrap(StreamLogHandler.standardError)
+    var logger = Logger(label: "FakePC")
+    logger.logLevel = .error
+    return logger
+}()
+
+
+public final class FakePC {
     let vm: VirtualMachine
     let ram: MemoryRegion
     let hma: MemoryRegion
@@ -26,8 +35,9 @@ final class FakePC {
     private(set) var vmExitCount = UInt64(0)
 
 
-    init(config: MachineConfig) throws {
+    public init(config: MachineConfig, logLevel: Logger.Level) throws {
         self.config = config
+        logger.logLevel = logLevel
         vm = try VirtualMachine(logger: logger)
         rootResourceManager = ResourceManager(portRange: IOPort.min...IOPort.max, irqRange: 0...15)
         let vcpu = try vm.addVCPU()

@@ -71,7 +71,7 @@ set_vector_end:
                 int     0x19
 
 
-%include "Sources/FakePC/bios/video.asm"
+%include "Sources/FakePCLib/bios/video.asm"
 
 
                 ;; Equipment List
@@ -108,8 +108,8 @@ int_15h:
                 out     0xe3, ax
                 retf    2               ; preserve CF
 
-%include "Sources/FakePC/bios/keyboard.asm"
-%include "Sources/FakePC/bios/irq.asm"
+%include "Sources/FakePCLib/bios/keyboard.asm"
+%include "Sources/FakePCLib/bios/irq.asm"
 
                 ;; Printer
 int_17h:
