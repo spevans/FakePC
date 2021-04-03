@@ -144,19 +144,23 @@ func biosCallForHardDrive(_ diskFunction: Disk.BIOSFunction, hdc: HDC, drive: In
             status = disk.checkExtensionsPresent(vcpu: vcpu)
 
         case .extendedReadSectors:
-            status = disk.extendedRead(vcpu: vcpu)
+            let dapOffset = UInt(vcpu.registers.ds.base) + UInt(vcpu.registers.si)
+            status = disk.extendedRead(vm: vm, dapOffset: dapOffset)
 
         case .extendedWriteSectors:
-            status = disk.extendedWrite(vcpu: vcpu)
+            let dapOffset = UInt(vcpu.registers.ds.base) + UInt(vcpu.registers.si)
+            status = disk.extendedWrite(vm: vm, dapOffset: dapOffset)
 
         case .extendedVerifySectors:
-            status = disk.extendedVerify(vcpu: vcpu)
+            let dapOffset = UInt(vcpu.registers.ds.base) + UInt(vcpu.registers.si)
+            status = disk.extendedVerify(vm: vm, dapOffset: dapOffset)
 
         case .extendedSeek:
             status = .invalidCommand
 
         case .extendedGetDriveParameters:
-            status = disk.extendedGetDriveParameters(vcpu: vcpu)
+            let dapOffset = UInt(vcpu.registers.ds.base) + UInt(vcpu.registers.si)
+            status = disk.extendedGetDriveParameters(vm: vm, dapOffset: dapOffset)
 
         default:
             status = .invalidCommand

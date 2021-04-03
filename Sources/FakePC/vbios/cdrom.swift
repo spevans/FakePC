@@ -34,13 +34,15 @@ func biosCallForCdrom(_ diskFunction: Disk.BIOSFunction, disk: Disk, vm: Virtual
             status = disk.checkExtensionsPresent(vcpu: vcpu)
 
         case .extendedReadSectors:
-            status = disk.extendedRead(vcpu: vcpu)
+            let dapOffset = UInt(vcpu.registers.ds.base) + UInt(vcpu.registers.si)
+            status = disk.extendedRead(vm: vm, dapOffset: dapOffset)
 
         case .extendedWriteSectors:
             status = .writeProtected
 
         case .extendedVerifySectors:
-            status = disk.extendedVerify(vcpu: vcpu)
+            let dapOffset = UInt(vcpu.registers.ds.base) + UInt(vcpu.registers.si)
+            status = disk.extendedVerify(vm: vm, dapOffset: dapOffset)
 
         case .lockUnlockDrive:
             status = .invalidCommand
@@ -52,7 +54,8 @@ func biosCallForCdrom(_ diskFunction: Disk.BIOSFunction, disk: Disk, vm: Virtual
             status = .invalidCommand
 
         case .extendedGetDriveParameters:
-            status = disk.extendedGetDriveParameters(vcpu: vcpu)
+            let dapOffset = UInt(vcpu.registers.ds.base) + UInt(vcpu.registers.si)
+            status = disk.extendedGetDriveParameters(vm: vm, dapOffset: dapOffset)
 
         case .extendedMediaChange:
             status = .invalidCommand

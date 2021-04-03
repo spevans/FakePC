@@ -13,9 +13,6 @@ import ArgumentParser
 import Foundation
 
 
-// The singleton object representing the PC
-private(set) internal var fakePC: FakePC!
-
 private(set) var logger: Logger = {
     LoggingSystem.bootstrap(StreamLogHandler.standardError)
     var logger = Logger(label: "FakePC")

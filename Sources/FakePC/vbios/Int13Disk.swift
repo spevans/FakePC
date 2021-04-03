@@ -263,11 +263,8 @@ extension Disk {
     }
 
 
-    func extendedRead(vcpu: VirtualMachine.VCPU) -> Status {
-        let vm = fakePC.vm
-        let offset = UInt(vcpu.registers.ds.base) + UInt(vcpu.registers.si)
-        guard let dap = try? vm.memory(at: PhysicalAddress(offset), count: 16) else { return .invalidCommand }
-
+    func extendedRead(vm: VirtualMachine, dapOffset: UInt) -> Status {
+        guard let dap = try? vm.memory(at: PhysicalAddress(dapOffset), count: 16) else { return .invalidCommand }
         guard let sectorOperation = diskAccessPacket(UnsafeRawPointer(dap)) else { return .invalidCommand }
         guard
             let ptr = try? vm.memory(
@@ -279,10 +276,8 @@ extension Disk {
     }
 
 
-    func extendedWrite(vcpu: VirtualMachine.VCPU) -> Status {
-        let vm = fakePC.vm
-        let offset = UInt(vcpu.registers.ds.base) + UInt(vcpu.registers.si)
-        guard let dap = try? vm.memory(at: PhysicalAddress(offset), count: 16) else { return .invalidCommand }
+    func extendedWrite(vm: VirtualMachine, dapOffset: UInt) -> Status {
+        guard let dap = try? vm.memory(at: PhysicalAddress(dapOffset), count: 16) else { return .invalidCommand }
         guard let sectorOperation = diskAccessPacket(UnsafeRawPointer(dap)) else { return .invalidCommand }
         guard !sectorOperation.disk.isReadOnly else { return .writeProtected }
 
@@ -306,10 +301,8 @@ extension Disk {
     }
 
 
-    func extendedVerify(vcpu: VirtualMachine.VCPU) -> Status {
-        let vm = fakePC.vm
-        let offset = UInt(vcpu.registers.ds.base) + UInt(vcpu.registers.si)
-        guard let dap = try? vm.memory(at: PhysicalAddress(offset), count: 16) else { return .invalidCommand }
+    func extendedVerify(vm: VirtualMachine, dapOffset: UInt) -> Status {
+        guard let dap = try? vm.memory(at: PhysicalAddress(dapOffset), count: 16) else { return .invalidCommand }
         guard let sectorOperation = diskAccessPacket(UnsafeRawPointer(dap)) else { return .invalidCommand }
         guard
             let ptr = try? vm.memory(
@@ -349,13 +342,8 @@ extension Disk {
     }
 
 
-    func extendedGetDriveParameters(vcpu: VirtualMachine.VCPU) -> Status {
-        let vm = fakePC.vm
-        let offset = UInt(vcpu.registers.ds.base) + UInt(vcpu.registers.si)
-        let parameterBuffer: UnsafeMutableRawPointer
-        do {
-            parameterBuffer = try vm.memory(at: PhysicalAddress(offset), count: 16)
-        } catch {
+    func extendedGetDriveParameters(vm: VirtualMachine, dapOffset: UInt) -> Status {
+        guard let parameterBuffer = try? vm.memory(at: PhysicalAddress(dapOffset), count: 16) else {
             return .invalidCommand
         }
 
