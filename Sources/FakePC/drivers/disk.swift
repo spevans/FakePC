@@ -208,7 +208,7 @@ final class Disk {
             return .failure(.sectorNotFound)
         }
         let sectorCount = Int(vcpu.registers.al)
-        guard sectorCount > 0 && sectorCount <= 63 else {
+        guard sectorCount <= 72 else {
             return .failure(.invalidNumberOfSectors)
         }
 
