@@ -29,8 +29,8 @@ extension FileHandle {
 }
 #endif
 
-// Represents either 1 floppy or hard disk including BIOS call functions
-// Storage is implemented as a URL to a file on the host drive.
+// Represents either 1 floppy or hard disk / cdrom including BIOS call functions
+// Storage is implemented as a file on the host system.
 public final class Disk {
 
     enum DriveType {
@@ -51,8 +51,8 @@ public final class Disk {
         var capacity: UInt64 { UInt64(sectorSize) * UInt64(totalSectors) }
 
         // LBA only, no CHS specified
-        init(sectors: Int, sectorSize: Int = 512) {
-            totalSectors = sectors
+        init(totalSectors: Int, sectorSize: Int = 512) {
+            self.totalSectors = totalSectors
             self.sectorSize = sectorSize
             sectorsPerTrack = 0
             tracksPerHead = 0
@@ -76,6 +76,23 @@ public final class Disk {
             self.sectorSize = sectorSize
             self.totalSectors = totalSize / sectorSize  // Round down
         }
+
+        // Try and guess the geometry
+        init?(guessFrom mbr: MasterBootRecord, totalSectors: UInt64) {
+            for partition in mbr.partitions {
+                if partition.sectorCount > 0 && partition.lastSectorCHS.head > 0, partition.lastSectorCHS.sector > 0 {
+                    let heads = Int(partition.lastSectorCHS.head) + 1
+                    let sectors = Int(partition.lastSectorCHS.sector)
+                    let cylinders = Int(totalSectors) / Int(heads * sectors)
+                    if cylinders > 0 && cylinders < 16384 {
+                        self.init(sectorsPerTrack: Int(sectors), tracksPerHead: cylinders, heads: Int(heads))
+                        return
+                    }
+                }
+            }
+            return nil
+        }
+
 
         // LBA 0 is Head 0, Track 0, sector 0
         func logicalSector(head: Int, track: Int, sector: Int) -> UInt64 {
@@ -120,24 +137,54 @@ public final class Disk {
             }
 
             totalSize = fileHandle.seekToEndOfFile()
+            try fileHandle.seek(toOffset: 0)
             guard totalSize > 0 else {
                 throw DiskError.zeroSizedMedia
             }
-        } catch {
+
+            if let geometry = geometry {
+                self.geometry = geometry
+                guard geometry.capacity == totalSize else {
+                    fatalError("Image size \(totalSize) != data size \(geometry.capacity)")
+                }
+            } else {
+                let sectorSize = 512
+                let totalSectors = (totalSize + UInt64(sectorSize) - 1) / UInt64(sectorSize)
+
+                try fileHandle.seek(toOffset: 0)
+                // Try and guess the geometry from the MBR
+                if device == .harddisk,
+                   let mbr = MasterBootRecord(fileHandle.readData(ofLength: sectorSize)),
+                   let geometry = Geometry(guessFrom: mbr, totalSectors: totalSectors) {
+
+                    self.geometry = geometry
+                }
+                else {
+                    // Default geometry with not CHS.
+                    let sectorSize = 512
+                    self.geometry = Geometry(totalSectors: Int(totalSectors), sectorSize: sectorSize)
+                }
+            }
+        }
+        catch {
             fatalError("Error initialising Disk from: '\(imageName)': \(error)")
         }
+    }
 
-        if let geometry = geometry {
-            self.geometry = geometry
-            guard geometry.capacity == totalSize else {
-                logger.debug("Image size != data size")
-                return nil
-            }
-        } else {
-            let sectorSize = 512
-            let sectors = (totalSize + UInt64(sectorSize) - 1) / UInt64(sectorSize)
-            self.geometry = Geometry(sectors: Int(sectors), sectorSize: sectorSize)
+    init(cdromImage: String) {
+        imageURL = URL(fileURLWithPath: cdromImage, isDirectory: false)
+        do {
+            fileHandle = try FileHandle(forReadingFrom: imageURL)
+            totalSize = fileHandle.seekToEndOfFile()
+            try fileHandle.seek(toOffset: 0)
+        } catch {
+            fatalError("Error initialising CD-ROM from: '\(cdromImage)': \(error)")
         }
+        let sectorSize = 2048
+        let totalSectors = (totalSize + UInt64(sectorSize) - 1) / UInt64(sectorSize)
+        geometry = Geometry(totalSectors: Int(totalSectors), sectorSize: sectorSize)
+        isReadOnly = true
+        device = .cdrom
     }
 
 

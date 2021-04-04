@@ -57,6 +57,9 @@ struct FakePCCommand: ParsableCommand {
     @Option(help: "Path to image file for hd1 (F:)")
     var hd3: String?
 
+    @Option(help: "Path to image file for CD-ROM")
+    var cdrom: String?
+
 
     @Option(help: "Loglevel \(Logger.Level.allValueStrings.joined(separator: ", "))")
     var logLevel: Logger.Level = .error
@@ -74,10 +77,21 @@ struct FakePCCommand: ParsableCommand {
 
         let fd0Disk = fd0 == nil ? nil : FDC.parseCommandLineArguments(fd0!)
         let fd1Disk = fd1 == nil ? nil : FDC.parseCommandLineArguments(fd1!)
-        let hd0Disk = hd0 == nil ? nil : HDC.parseCommandLineArguments(hd0!)
-        let hd1Disk = hd1 == nil ? nil : HDC.parseCommandLineArguments(hd1!)
-        let hd2Disk = hd2 == nil ? nil : HDC.parseCommandLineArguments(hd2!)
-        let hd3Disk = hd3 == nil ? nil : HDC.parseCommandLineArguments(hd3!)
+        var hd0Disk = hd0 == nil ? nil : HDC.parseCommandLineArguments(hd0!)
+        var hd1Disk = hd1 == nil ? nil : HDC.parseCommandLineArguments(hd1!)
+        var hd2Disk = hd2 == nil ? nil : HDC.parseCommandLineArguments(hd2!)
+        var hd3Disk = hd3 == nil ? nil : HDC.parseCommandLineArguments(hd3!)
+
+        if cdrom != nil {
+            let cdromDrive = HDC.parseCommandLineArgumentsFor(cdrom: cdrom!)
+            if hd0Disk == nil { hd0Disk = cdromDrive }
+            else if hd1Disk == nil { hd1Disk = cdromDrive }
+            else if hd2Disk == nil { hd2Disk = cdromDrive }
+            else if hd3Disk == nil { hd3Disk = cdromDrive }
+            else {
+                fatalError("Too many drives, the number of Hard disks and cdroms cannot exceed 4")
+            }
+        }
 
         let config = MachineConfig(biosURL: biosURL,
                                    textMode: textMode,

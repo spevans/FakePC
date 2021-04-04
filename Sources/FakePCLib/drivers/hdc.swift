@@ -20,7 +20,14 @@ public final class HDC: ISAIOHardware {
         var imageFile: String?
         var readOnly = false
 
-        for part in parameters.split(separator: ",") {
+        let parts = parameters.split(separator: ",")
+        if parts.count <= 1 {
+            // If no geometry is specified then Disk.init() will try and guess it from the
+            // MBR in the disk image (if one can be found).
+            return Disk(imageName: parameters, device: .harddisk)
+        }
+
+        for part in parts {
             if part == "ro" {
                 readOnly = true
                 continue
@@ -43,12 +50,8 @@ public final class HDC: ISAIOHardware {
         }
     }
 
-    static func parseCommandLineArgumentsFor(cdrom parameters: String) -> Disk? {
-        let imageFile = parameters
-        guard let fileSize = Disk.fileSizeInBytes(path: imageFile) else { return nil }
-
-        let geometry = Disk.Geometry(totalSize: Int(fileSize), sectorSize: 2048)
-        return Disk(imageName: imageFile, geometry: geometry, device: .cdrom, readOnly: true)
+    public static func parseCommandLineArgumentsFor(cdrom parameters: String) -> Disk? {
+        return Disk(cdromImage: parameters)
     }
 
 
