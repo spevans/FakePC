@@ -56,6 +56,7 @@ func biosCall(fakePC: FakePC, subSystem: IOPort, function: UInt8) throws {
             setupDisks(isa)
             try setupBDA(fakePC: fakePC) // setup BIOS Data Area
 
+        case 0xE7: Disk.loadBootSector(fakePC: fakePC)
         case 0xE8: isa.rtc.biosCall(function: function, registers: registers, vm)
         case 0xEF: debug()
         default: fatalError("Unhandled BIOS call (0x\(String(subSystem, radix: 16)),0x\(String(function, radix: 16)))")

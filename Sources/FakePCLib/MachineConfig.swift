@@ -21,8 +21,10 @@ public struct MachineConfig {
     public let hd1: Disk?
     public let hd2: Disk?
     public let hd3: Disk?
+    public let bootOrder: [Character]
 
-    public init(biosURL: URL, textMode: Bool, fd0: Disk?, fd1: Disk?, hd0: Disk?, hd1: Disk?, hd2: Disk?, hd3: Disk?) {
+    public init(biosURL: URL, textMode: Bool, fd0: Disk?, fd1: Disk?, hd0: Disk?, hd1: Disk?, hd2: Disk?, hd3: Disk?,
+                bootOrder: [Character]) {
         self.biosURL = biosURL
         self.textMode = textMode
         self.fd0 = fd0
@@ -31,6 +33,7 @@ public struct MachineConfig {
         self.hd1 = hd1
         self.hd2 = hd2
         self.hd3 = hd3
+        self.bootOrder = bootOrder
     }
 }
 

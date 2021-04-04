@@ -60,6 +60,8 @@ struct FakePCCommand: ParsableCommand {
     @Option(help: "Path to image file for CD-ROM")
     var cdrom: String?
 
+    @Option(help: "Boot order: a: floppy c: hard disk d: cdrom")
+    var boot = "d,c,a"
 
     @Option(help: "Loglevel \(Logger.Level.allValueStrings.joined(separator: ", "))")
     var logLevel: Logger.Level = .error
@@ -93,6 +95,22 @@ struct FakePCCommand: ParsableCommand {
             }
         }
 
+        var bootOrder: [Character] = []
+        for part in boot.split(separator: ",").map(String.init) {
+            let disk = part.lowercased()
+            switch disk {
+                case "a", "c", "d":
+                    let ch = disk.first!
+                    if bootOrder.contains(ch) {
+                        fatalError("Boot Order specifies '\(disk)' multiple times")
+                    }
+                    bootOrder.append(ch)
+
+                default: fatalError("Unknown boot order '\(disk)'")
+            }
+        }
+        guard !bootOrder.isEmpty else { fatalError("No boot order specified") }
+
         let config = MachineConfig(biosURL: biosURL,
                                    textMode: textMode,
                                    fd0: fd0Disk,
@@ -100,7 +118,8 @@ struct FakePCCommand: ParsableCommand {
                                    hd0: hd0Disk,
                                    hd1: hd1Disk,
                                    hd2: hd2Disk,
-                                   hd3: hd3Disk
+                                   hd3: hd3Disk,
+                                   bootOrder: bootOrder
         )
 
         do {

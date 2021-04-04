@@ -9,9 +9,10 @@
 //
 
 import HypervisorKit
+import BABAB
 
-// Maps BIOS disk number to Disk, 00-7f, floppies 0x80-0xDF hard disk, 0xE0-0xEF CDROM
 
+// Maps BIOS disk number to Disk: 00-7f floppies, 0x80-0xDF hard disk, 0xE0-0xEF CDROM
 private enum PhysicalMedia {
     case fdc(Int)  // channel 0 or 1
     case hdc(Int, Int)  // controller 0/1, channel 0/1
@@ -45,6 +46,106 @@ internal func setupDisks(_ isa: ISA) {
     logger.debug("BIOS disk mapping:")
     for key in disks.keys.sorted() {
         logger.debug("\(String(key, radix: 16)): \(disks[key]!)")
+    }
+}
+
+
+extension Disk {
+    // Load a boot sector from Cdrom, Hardrive or floppy,
+    // On sucess, DL = Boot drive, Carry = clear
+    // On error, Carry = set
+    static internal func loadBootSector(fakePC: FakePC) {
+        logger.debug("loadBootSector, order: \(fakePC.config.bootOrder))")
+
+
+        // Return the first BIOS disk in a range
+        func firstDriveIn(_ range: ClosedRange<UInt8>) -> UInt8? {
+            range.lazy.compactMap { disks[$0] == nil ? nil : $0 }.first
+        }
+
+
+        let vm = fakePC.vm
+        let vcpus = vm.vcpus[0]
+        let isa = fakePC.isa
+
+        for bootDrive in fakePC.config.bootOrder {
+            var sectorOperation: Disk.SectorOperation?
+            var driveId: UInt8?
+
+            if bootDrive == "a", let drive = firstDriveIn(0x00...0x7f),
+               let fd = disks[drive], case .fdc(let channel) = fd,
+               let disk = isa.floppyDriveController.disks[channel] {
+                logger.debug("Trying Floppy boot")
+                sectorOperation = Disk.SectorOperation(disk: disk,
+                                                       startSector: 0,
+                                                       sectorCount: 1,
+                                                       bufferOffset: 0x7C00,
+                                                       bufferSize: disk.sectorSize)
+                driveId = drive
+            }
+            else if bootDrive == "c", let drive = firstDriveIn(0x80...0xdf),
+                    let hd = disks[drive], case .hdc(let controller, let channel) = hd,
+                    let disk = isa.hardDriveControllers[controller].disks[channel] {
+                logger.debug("Trying Harddisk boot")
+                sectorOperation = Disk.SectorOperation(disk: disk,
+                                                       startSector: 0,
+                                                       sectorCount: 1,
+                                                       bufferOffset: 0x7C00,
+                                                       bufferSize: disk.sectorSize)
+                driveId = drive
+            }
+
+            else if bootDrive == "d", let drive = firstDriveIn(0xE0...0xff),
+                    let cdrom = disks[drive], case .hdc(let controller, let channel) = cdrom,
+                    let disk = isa.hardDriveControllers[controller].disks[channel], disk.isCdrom {
+                logger.debug("Trying CD-ROM boot")
+                sectorOperation = bootFrom(cdrom: disk)
+                driveId = drive
+            }
+
+            if let operation = sectorOperation, let driveId = driveId {
+                let ptr = vm.memoryRegions[0].rawBuffer.baseAddress!.advanced(by: operation.bufferOffset)
+                let buffer = UnsafeMutableRawBufferPointer(start: ptr, count: operation.bufferSize)
+                if operation.readSectors(into: buffer) == .ok {
+
+                    if bootDrive != "d" {
+                        // Check for boot sector signature 0x55AA
+                        guard buffer[510] == 0x55, buffer[511] == 0xAA else {
+                            logger.debug("Boot sector on drive \(hexNum(driveId)) is missing boot signature 0xAA55")
+                            continue
+                        }
+                    }
+
+                    logger.debug("Bootsector loaded")
+                    vcpus.registers.rflags.carry = false
+                    vcpus.registers.dl = driveId
+                    // Boot successful
+                    return
+                }
+            }
+        }
+
+        // Boot failure
+        logger.debug("No bootable media found")
+        vcpus.registers.rflags.carry = true
+
+    }
+
+
+    static internal func bootFrom(cdrom: Disk) -> Disk.SectorOperation? {
+        // Look for a El-Torito boot section on the cdrom
+        let fs = ISO9660(fileHandle: cdrom.fileHandle, totalSize: cdrom.totalSize)
+        if let defaultEntry = fs.bootableEntry() {
+            var segment = defaultEntry.loadSegment
+            if segment == 0 { segment = 0x7C0 }
+            let bufferOffset = Int(segment * 16)
+            return Disk.SectorOperation(disk: cdrom,
+                                        startSector: UInt64(defaultEntry.startSectorLBA),
+                                        sectorCount: Int(defaultEntry.sectorCount),
+                                        bufferOffset: bufferOffset,
+                                        bufferSize: Int(defaultEntry.sectorCount) * Int(cdrom.sectorSize))
+        }
+        return nil
     }
 }
 

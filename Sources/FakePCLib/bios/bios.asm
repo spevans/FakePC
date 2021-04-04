@@ -127,19 +127,7 @@ int_18h:
 
                 ;; Reboot / Startup
 int_19h:
-                mov     ax, 0x0201
-                mov     cx, 0x0001      ; Track 0 Sector 1
-                mov     dx, 0x0000      ; Drive 0 (A:) Head 0
-                mov     bx, 0x7C0
-                mov     es, bx
-                mov     bx, dx          ; ES:BX => 0x7C00
-                int     0x13
-                jnc     loaded_ok
-
-                ;; Try the hard drive
-                mov     ax, 0x0201
-                mov     dl, 0x80
-                int     0x13
+                out     0xe7, ax ; Tell the vBIOS to boot the system
                 jnc     loaded_ok
                 int     0x18            ; Fall back to ROM
 
