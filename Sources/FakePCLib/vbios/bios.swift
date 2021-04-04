@@ -47,13 +47,13 @@ func biosCall(fakePC: FakePC, subSystem: IOPort, function: UInt8) throws {
 
     switch subSystem {
         case 0xE0: isa.video.biosCall(function: function, registers: registers, vm)
-        case 0xE1: diskCall(function: function, vm: vm, isa: isa)
+        case 0xE1: Disk.diskCall(function: function, vm: vm, isa: isa)
         case 0xE2: if let serial = isa.serialPort(Int(registers.dx)) { serial.biosCall(function: function, registers: registers, vm) }
         case 0xE3: systemServices(function: function, registers: registers, vm)
         case 0xE4: isa.keyboardController.biosCall(function: function, registers: registers, vm)
         case 0xE5: if let printer = isa.printerPort(Int(registers.dx)) { printer.biosCall(function: function, registers: registers, vm) }
         case 0xE6:
-            setupDisks(isa)
+            Disk.setupDisks(isa)
             try setupBDA(fakePC: fakePC) // setup BIOS Data Area
 
         case 0xE7: Disk.loadBootSector(fakePC: fakePC)
