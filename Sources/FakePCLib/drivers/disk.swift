@@ -187,10 +187,12 @@ public final class Disk {
         device = .cdrom
     }
 
-
-    static func trackAndSectorFrom(cx: UInt16) -> (Int, Int) {
+    // Convert the packed 10bit track and 6bit sector.
+    // low byte: sector in bits 5–0; bits 7–6 are high bits of track
+    // high byte: bits 7–0 of track
+    static func unpackTrackAndSector(from cx: UInt16) -> (Int, Int) {
         let sector = Int(cx) & 0x3f
-        let track = Int(cx) >> 8 | (Int(cx & 0xc0) << 10)
+        let track = Int(cx) >> 8 | (Int(cx & 0xc0) << 2)
         return (track, sector)
     }
 

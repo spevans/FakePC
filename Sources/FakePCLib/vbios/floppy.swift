@@ -170,7 +170,7 @@ func biosCallForFloppy(_ diskFunction: Disk.BIOSFunction, fdc: FDC, drive: Int, 
         case .setMediaTypeForFormat:
             // TODO: Determine why DOS tries to format track 80 (ie 81st track) which always fails
             // Where is it getting 81 tracks from?
-            let (tracks, sectorsPerTrack) = Disk.trackAndSectorFrom(cx: vcpu.registers.cx)
+            let (tracks, sectorsPerTrack) = Disk.unpackTrackAndSector(from: vcpu.registers.cx)
             logger.debug("FDC: setMediaTypeForFormat: tracks \(tracks) sectorsPerTrack: \(sectorsPerTrack)")
 
             fdc.mediaTypeForFormat[drive] = nil

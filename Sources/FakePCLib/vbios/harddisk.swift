@@ -91,7 +91,7 @@ func biosCallForHardDrive(_ diskFunction: Disk.BIOSFunction, hdc: HDC, drive: In
             status = .invalidCommand
 
         case .seekToCylinder:
-            let (track, _) = Disk.trackAndSectorFrom(cx: vcpu.registers.cx)
+            let (track, _) = Disk.unpackTrackAndSector(from: vcpu.registers.cx)
             status = disk.setCurrentTrack(track)
 
         case .alternateDiskReset:

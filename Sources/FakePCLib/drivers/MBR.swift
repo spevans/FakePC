@@ -27,13 +27,13 @@ extension MasterBootRecord {
             status = data[index]
 
             do {
-                let (track, sector) = Disk.trackAndSectorFrom(cx: data[index + 2 ... index + 3].readLSB16())
+                let (track, sector) = Disk.unpackTrackAndSector(from: data[index + 2 ... index + 3].readLSB16())
                 firstSectorCHS = (track: UInt16(track), head: data[index + 1], sector: UInt8(sector))
             }
             partitionType = data[index + 4]
 
             do {
-                let (track, sector) = Disk.trackAndSectorFrom(cx: data[index + 6 ... index + 7].readLSB16())
+                let (track, sector) = Disk.unpackTrackAndSector(from: data[index + 6 ... index + 7].readLSB16())
                 lastSectorCHS = (track: UInt16(track), head: data[index + 5], sector: UInt8(sector))
             }
 
